@@ -9,10 +9,15 @@ final class DeveloperDiskImageService {
     static let shared = DeveloperDiskImageService()
     static let directoryURL = URL.documentsDirectory.appendingPathComponent("DDI", isDirectory: true)
 
-    static var filesAreReady: Bool {
+    static var cachedFilesAreComplete: Bool {
         downloadItems.allSatisfy {
             FileManager.default.fileExists(atPath: directoryURL.appendingPathComponent($0.fileName).path)
-        } && (try? String(contentsOf: mountMethodURL, encoding: .utf8)) == mountMethod.rawValue
+        }
+    }
+
+    static var filesAreReady: Bool {
+        cachedFilesAreComplete
+            && (try? String(contentsOf: mountMethodURL, encoding: .utf8)) == mountMethod.rawValue
     }
 
     static var usesCryptexDDI: Bool {
@@ -29,6 +34,15 @@ final class DeveloperDiskImageService {
 
     func downloadMissingFiles() async throws {
         let installedMethod = try? String(contentsOf: Self.mountMethodURL, encoding: .utf8)
+
+        // Files can be copied in through the Files app (or iTunes file sharing) instead of
+        // being downloaded. Adopt them once all of them are present.
+        if installedMethod != Self.mountMethod.rawValue, Self.cachedFilesAreComplete {
+            try fileManager.createDirectory(at: Self.directoryURL, withIntermediateDirectories: true)
+            try Self.mountMethod.rawValue.write(to: Self.mountMethodURL, atomically: true, encoding: .utf8)
+            return
+        }
+
         let replaceFiles = installedMethod != Self.mountMethod.rawValue
 
         if !Self.usesCryptexDDI {
