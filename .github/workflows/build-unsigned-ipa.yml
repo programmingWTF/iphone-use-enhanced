@@ -1,16 +1,36 @@
 name: Build unsigned IPA
 
 # Builds an *unsigned* .ipa on a GitHub-hosted macOS runner, for people without a Mac.
-# The IPA is then signed on Windows with Sideloadly (free or paid Apple ID) and installed
-# over USB. No Apple Developer account or signing secrets are needed for this workflow.
+# The IPA is then signed on Windows (Sideloadly, AltStore, 爱思助手 …) with a free or paid
+# Apple ID and installed over USB. No Apple Developer account or signing secrets are needed.
 #
 # Notes:
 # - BUILTIN_VPN=NO produces the free-Apple-ID variant (no Network Extension entitlement);
 #   that variant needs the LocalDevVPN app from the App Store at run time.
 # - The device-only build is arm64; the Rust static library is built by scripts/build-idevice.sh.
+# - Optional dispatch inputs make the IPA friendlier for simple signing tools:
+#     bundle_id        stamp a bundle id your Apple ID is allowed to register
+#                      (the upstream *blog.eliot.iphoneuse* is already taken by the author's team)
+#     strip_extensions drop the widget + tunnel-provider extensions for tools that cannot
+#                      sign nested bundles
+#     name_suffix      suffix for the IPA/artifact file name
 
 on:
   workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: "Bundle identifier to stamp into the app (empty = keep blog.eliot.iphoneuse)"
+        required: false
+        default: ""
+      strip_extensions:
+        description: "Remove PlugIns/*.appex (widget + tunnel provider) before packaging"
+        required: false
+        type: boolean
+        default: false
+      name_suffix:
+        description: "Suffix for the produced file name, e.g. -sideload (empty = none)"
+        required: false
+        default: ""
   push:
     branches: [main]
 
@@ -55,24 +75,61 @@ jobs:
             build
 
       - name: Package unsigned IPA
+        env:
+          REQUESTED_BUNDLE_ID: ${{ inputs.bundle_id }}
+          STRIP_EXTENSIONS: ${{ inputs.strip_extensions }}
+          NAME_SUFFIX: ${{ inputs.name_suffix }}
         run: |
           set -euo pipefail
           APP="build/Build/Products/Release-iphoneos/iPhoneUse.app"
           test -d "$APP"
+
+          bundle_id="${REQUESTED_BUNDLE_ID:-blog.eliot.iphoneuse}"
+          suffix="${NAME_SUFFIX:-}"
+          ipa="iphone-use-app-unsigned${suffix}.ipa"
+
+          case "$bundle_id" in
+            *[!A-Za-z0-9.-]*|"")
+              echo "::error::invalid bundle id '$bundle_id'"
+              exit 1
+              ;;
+          esac
+
+          if [ "$bundle_id" != "blog.eliot.iphoneuse" ]; then
+            echo "Stamping bundle id $bundle_id"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $bundle_id" "$APP/Info.plist"
+            # The extensions must share the app's bundle-id prefix, unless they are dropped below.
+            if [ "${STRIP_EXTENSIONS:-false}" != "true" ] && [ -d "$APP/PlugIns" ]; then
+              for name in AgentWidget TunnelProvider; do
+                plist="$APP/PlugIns/$name.appex/Info.plist"
+                if [ -f "$plist" ]; then
+                  /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $bundle_id.$name" "$plist"
+                fi
+              done
+            fi
+          fi
+
+          if [ "${STRIP_EXTENSIONS:-false}" = "true" ] && [ -d "$APP/PlugIns" ]; then
+            echo "Dropping app extensions:"
+            ls "$APP/PlugIns"
+            rm -rf "$APP/PlugIns"
+          fi
+
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/Info.plist"
-          rm -rf Payload iphone-use-app-unsigned.ipa
+
+          rm -rf Payload "$ipa"
           mkdir -p Payload
           cp -R "$APP" Payload/
-          ditto -c -k --sequesterRsrc --keepParent Payload iphone-use-app-unsigned.ipa
-          shasum -a 256 iphone-use-app-unsigned.ipa | tee sha256.txt
-          ls -lh iphone-use-app-unsigned.ipa
+          ditto -c -k --sequesterRsrc --keepParent Payload "$ipa"
+          shasum -a 256 "$ipa" | tee sha256.txt
+          ls -lh "$ipa"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: iphone-use-app-unsigned-ipa
+          name: iphone-use-app-unsigned-ipa${{ inputs.name_suffix }}
           path: |
-            iphone-use-app-unsigned.ipa
+            iphone-use-app-unsigned*.ipa
             sha256.txt
           if-no-files-found: error
