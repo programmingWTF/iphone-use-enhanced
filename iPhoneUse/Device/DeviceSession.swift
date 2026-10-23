@@ -106,7 +106,8 @@ final class DeviceSession {
         var path = Array(Self.ideviceLogURL.path.utf8CString)
         path.withUnsafeMutableBufferPointer { buffer in
             // Not Debug: it dumps every XPC message, screenshots included, as decimal byte lists.
-            _ = idevice_init_logger(Info, Info, buffer.baseAddress)
+            // Debug (not Trace): the tunnel handshake lines in idevice are all `debug!`.
+        _ = idevice_init_logger(Info, Debug, buffer.baseAddress)
         }
     }
 
@@ -139,6 +140,52 @@ final class DeviceSession {
         return pairingFile
     }
 
+    /// Appends a line to the same file the idevice logger writes, so one file has both sides.
+    static func appendLog(_ line: String) {
+        let stamp = ISO8601DateFormatter().string(from: Date())
+        let text = "[\(stamp)] [iPhoneUse] \(line)\n"
+        guard let data = text.data(using: .utf8) else { return }
+        if !FileManager.default.fileExists(atPath: ideviceLogURL.path) {
+            try? data.write(to: ideviceLogURL)
+            return
+        }
+        guard let handle = try? FileHandle(forWritingTo: ideviceLogURL) else { return }
+        defer { try? handle.close() }
+        _ = try? handle.seekToEnd()
+        _ = try? handle.write(contentsOf: data)
+    }
+
+    /// Plain TCP reachability check of the loopback peer, so a failure is attributable:
+    /// "never connected" is the VPN, "connected then TLS" is the pairing/handshake.
+    static func probeTCP(port: UInt16, timeout: TimeInterval = 3) -> String {
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else { return "socket() errno=\(errno)" }
+        defer { close(fd) }
+        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK)
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = port.bigEndian
+        _ = peerIP.withCString { inet_pton(AF_INET, $0, &addr.sin_addr) }
+        let rc = withUnsafePointer(to: &addr) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        if rc == 0 { return "connected immediately" }
+        if errno != EINPROGRESS { return "connect errno=\(errno) (\(String(cString: strerror(errno))))" }
+        var pfd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+        let ready = poll(&pfd, 1, Int32(timeout * 1000))
+        if ready == 0 { return "connect timed out after \(timeout)s" }
+        if ready < 0 { return "poll errno=\(errno) (\(String(cString: strerror(errno))))" }
+        var soError: Int32 = 0
+        var length = socklen_t(MemoryLayout<Int32>.size)
+        guard getsockopt(fd, SOL_SOCKET, SO_ERROR, &soError, &length) == 0 else {
+            return "getsockopt errno=\(errno)"
+        }
+        if soError != 0 { return "connect so_error=\(soError) (\(String(cString: strerror(soError))))" }
+        return "connected"
+    }
+
     fileprivate func createTunnel(hostname: String) throws -> TunnelHandles {
         let pairingFile = try readPairingFile()
         defer { rp_pairing_file_free(pairingFile) }
@@ -147,6 +194,10 @@ final class DeviceSession {
         addr.sin_family = sa_family_t(AF_INET)
         addr.sin_port = in_port_t(RemotePairingPortResolver.resolve()).bigEndian
         _ = Self.peerIP.withCString { inet_pton(AF_INET, $0, &addr.sin_addr) }
+
+        let port = addr.sin_port.bigEndian
+        let probe = Self.probeTCP(port: port)
+        Self.appendLog("tunnel: 10.7.0.1:\(port) probe -> \(probe)")
 
         var tunnel = TunnelHandles()
         let ffiError = hostname.withCString { hostname in
@@ -167,7 +218,9 @@ final class DeviceSession {
         }
 
         if let ffiError {
-            throw error(from: ffiError, fallback: "Failed to create tunnel")
+            let detail = ffiError.pointee.message.flatMap { String(validatingUTF8: $0) } ?? "no message"
+            Self.appendLog("tunnel: failed code=\(ffiError.pointee.code) sub=\(ffiError.pointee.sub_code) msg=\(detail)")
+            throw error(from: ffiError, fallback: "Failed to create tunnel [tcp: \(probe)]")
         }
         guard tunnel.adapter != nil, tunnel.handshake != nil else {
             tunnel.free()

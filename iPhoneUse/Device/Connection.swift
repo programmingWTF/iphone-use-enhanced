@@ -49,6 +49,7 @@ final class Connection: ObservableObject {
     }
 
     private func run(userInitiated: Bool) async {
+        var currentStep = "Starting"
         guard hasPairingFile else {
             step = .failed("Import a pairing file in Settings.")
             return
@@ -57,6 +58,7 @@ final class Connection: ObservableObject {
         do {
             var notice = ""
             if VPNMode.current == .builtIn {
+                currentStep = "Built-in VPN"
                 step = .working("Starting VPN…")
                 do {
                     try await LoopbackVPN.start()
@@ -67,6 +69,7 @@ final class Connection: ObservableObject {
                 }
             }
 
+            currentStep = "Tunnel"
             step = .working("Connecting to this iPhone…")
             // Keep a tunnel that still answers: on cellular only, iOS refuses new
             // connections to the VPN peer but leaves established ones alone.
@@ -101,9 +104,11 @@ final class Connection: ObservableObject {
             }
 
             if !DeveloperDiskImageService.filesAreReady {
+                currentStep = "Developer disk image download"
                 step = .working("Downloading developer disk image…")
                 try await DeveloperDiskImageService.shared.downloadMissingFiles()
             }
+            currentStep = "Developer disk image mount"
             step = .working("Mounting developer disk image…")
             try await Task.detached(priority: .userInitiated) { try Self.mountDDIIfNeeded() }.value
 
@@ -112,7 +117,8 @@ final class Connection: ObservableObject {
             let nsError = error as NSError
             let message = nsError.code == -9
                 ? "The pairing file is invalid or expired. Import a new one in Settings."
-                : "\(error.localizedDescription)\nTarget: \(RemotePairingPortResolver.lastAttemptDescription)"
+                : "[\(currentStep)] \(nsError.domain)/\(nsError.code): \(error.localizedDescription)\nTarget: \(RemotePairingPortResolver.lastAttemptDescription)"
+            DeviceSession.appendLog("connect failed at step '\(currentStep)': \(nsError.domain)/\(nsError.code) \(error.localizedDescription)")
             appLog.error("Connection failed: \(message, privacy: .public)")
             step = .failed(message)
         }
