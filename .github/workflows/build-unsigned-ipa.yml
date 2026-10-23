@@ -36,7 +36,8 @@ jobs:
         run: rustup target add aarch64-apple-ios
 
       - name: Build idevice static library
-        run: scripts/build-idevice.sh
+        # bash (not ./) so a checkout without the exec bit still works
+        run: bash scripts/build-idevice.sh
 
       - name: Build app (unsigned)
         run: |
