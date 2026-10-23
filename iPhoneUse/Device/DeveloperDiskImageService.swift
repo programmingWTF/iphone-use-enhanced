@@ -40,9 +40,26 @@ final class DeveloperDiskImageService {
             guard replaceFiles || !fileManager.fileExists(atPath: destinationURL.path) else {
                 continue
             }
-            try await downloadFile(from: item.urlString, to: destinationURL)
+            try await downloadFile(from: item.urlStrings, to: destinationURL)
         }
         try Self.mountMethod.rawValue.write(to: Self.mountMethodURL, atomically: true, encoding: .utf8)
+    }
+
+    func downloadFile(from urlStrings: [String], to destinationURL: URL) async throws {
+        guard !urlStrings.isEmpty else {
+            throw DDIDownloadError.invalidURL("")
+        }
+        var lastError: Error?
+        for urlString in urlStrings {
+            do {
+                try await downloadFile(from: urlString, to: destinationURL)
+                return
+            } catch {
+                lastError = error
+                continue
+            }
+        }
+        throw lastError ?? DDIDownloadError.invalidURL(urlStrings.joined(separator: ", "))
     }
 
     func downloadFile(from urlString: String, to destinationURL: URL) async throws {
@@ -51,7 +68,9 @@ final class DeveloperDiskImageService {
             throw DDIDownloadError.invalidURL(urlString)
         }
 
-        let (temporaryURL, response) = try await session.download(from: url)
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 45
+        let (temporaryURL, response) = try await session.download(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw DDIDownloadError.invalidResponse
         }
@@ -98,7 +117,7 @@ final class DeveloperDiskImageService {
         for item in Self.downloadItems {
             progressHandler?(completedStages / totalStages, "Downloading \(item.name)...")
             let destinationURL = Self.directoryURL.appendingPathComponent(item.fileName)
-            try await downloadFile(from: item.urlString, to: destinationURL)
+            try await downloadFile(from: item.urlStrings, to: destinationURL)
             completedStages += 1.0
             progressHandler?(completedStages / totalStages, "\(item.name) ready")
         }
@@ -136,31 +155,43 @@ final class DeveloperDiskImageService {
         }
     }
 
+    /// The upstream files live in a GitHub repository, which is unreachable from some
+    /// networks. Each item lists the canonical URL followed by mirrors that forward to it.
+    private static func candidates(_ relativePath: String) -> [String] {
+        let raw = "https://raw.githubusercontent.com/doronz88/DeveloperDiskImage/main/PersonalizedImages/" + relativePath
+        return [
+            "https://github.com/doronz88/DeveloperDiskImage/raw/refs/heads/main/PersonalizedImages/" + relativePath,
+            raw,
+            "https://ghfast.top/" + raw,
+            "https://gh-proxy.com/" + raw
+        ]
+    }
+
     private static let cryptexDownloadItems: [DDIDownloadItem] = [
         .init(
             name: "Build Manifest",
             fileName: "BuildManifest.plist",
-            urlString: "https://github.com/doronz88/DeveloperDiskImage/raw/refs/heads/main/PersonalizedImages/Xcode_iOS_DDI_Cryptex/BuildManifest.plist"
+            urlStrings: candidates("Xcode_iOS_DDI_Cryptex/BuildManifest.plist")
         ),
         .init(
             name: "Image",
             fileName: "Image.dmg",
-            urlString: "https://github.com/doronz88/DeveloperDiskImage/raw/refs/heads/main/PersonalizedImages/Xcode_iOS_DDI_Cryptex/Image.dmg"
+            urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg")
         ),
         .init(
             name: "TrustCache",
             fileName: "Image.dmg.trustcache",
-            urlString: "https://github.com/doronz88/DeveloperDiskImage/raw/refs/heads/main/PersonalizedImages/Xcode_iOS_DDI_Cryptex/Image.dmg.trustcache"
+            urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg.trustcache")
         ),
         .init(
             name: "Cryptex Info",
             fileName: "Image.dmg.cryptex_info",
-            urlString: "https://github.com/doronz88/DeveloperDiskImage/raw/refs/heads/main/PersonalizedImages/Xcode_iOS_DDI_Cryptex/Image.dmg.cryptex_info"
+            urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg.cryptex_info")
         ),
         .init(
             name: "Root Hash",
             fileName: "Image.dmg.root_hash",
-            urlString: "https://github.com/doronz88/DeveloperDiskImage/raw/refs/heads/main/PersonalizedImages/Xcode_iOS_DDI_Cryptex/Image.dmg.root_hash"
+            urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg.root_hash")
         )
     ]
 
@@ -168,19 +199,20 @@ final class DeveloperDiskImageService {
         .init(
             name: "Build Manifest",
             fileName: "BuildManifest.plist",
-            urlString: "https://github.com/doronz88/DeveloperDiskImage/raw/refs/heads/main/PersonalizedImages/Xcode_iOS_DDI_Personalized/BuildManifest.plist"
+            urlStrings: candidates("Xcode_iOS_DDI_Personalized/BuildManifest.plist")
         ),
         .init(
             name: "Image",
             fileName: "Image.dmg",
-            urlString: "https://github.com/doronz88/DeveloperDiskImage/raw/refs/heads/main/PersonalizedImages/Xcode_iOS_DDI_Personalized/Image.dmg"
+            urlStrings: candidates("Xcode_iOS_DDI_Personalized/Image.dmg")
         ),
         .init(
             name: "TrustCache",
             fileName: "Image.dmg.trustcache",
-            urlString: "https://github.com/doronz88/DeveloperDiskImage/raw/refs/heads/main/PersonalizedImages/Xcode_iOS_DDI_Personalized/Image.dmg.trustcache"
+            urlStrings: candidates("Xcode_iOS_DDI_Personalized/Image.dmg.trustcache")
         )
     ]
+
 }
 
 private enum DDIMountMethod: String {
@@ -191,7 +223,7 @@ private enum DDIMountMethod: String {
 private struct DDIDownloadItem {
     let name: String
     let fileName: String
-    let urlString: String
+    let urlStrings: [String]
 }
 
 enum DDIDownloadError: LocalizedError {
