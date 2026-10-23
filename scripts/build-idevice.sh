@@ -9,7 +9,7 @@ TARGET=aarch64-apple-ios SDK=iphoneos OUT=iPhoneUse/idevice
 if [ "${1:-}" = sim ]; then TARGET=aarch64-apple-ios-sim SDK=iphonesimulator OUT=iPhoneUse/idevice/sim; fi
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SRC=${IDEVICE_SRC:-$ROOT/.build/idevice}
-COMMIT=3854a5d  # jkcoxson/idevice, "fix(ffi): preserve usbmuxd connection ownership (#138)"
+COMMIT=edf25870  # jkcoxson/idevice, "fix(tunnel): set MSS to 8192" (was 3854a5d)
 
 if [ ! -d "$SRC" ]; then
   git clone https://github.com/jkcoxson/idevice.git "$SRC"
