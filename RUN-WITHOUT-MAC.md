@@ -68,6 +68,31 @@ workflow 只产出未签名包：签名和安装都在 Windows 上做（见下�
 6. 免费账号：7 天后过期，重跑一次 Sideloadly 即可；想自动续签可以用 SideStore，
    但 SideStore 自己也要先侧载。
 
+## 2b. 备用：爱思助手（i4Tools）签名
+
+爱思助手「工具箱 → IPA 文件签名 → 使用 Apple ID 签名」同样能用免费 Apple ID 签私有 IPA
+（官方 FAQ 写明有效期 7 天），但它**不会替你改 bundle id，也不处理嵌套扩展**，所以原版 IPA
+直接喂进去大概率卡在「证书申请失败 / 描述文件」——因为 `blog.eliot.iphoneuse` 这个 App ID
+已被作者团队注册，而 App ID 全局唯一，免费号无法再注册同名。
+
+给这类「只认一个 .ipa」的工具准备一个干净版：Actions → **Build unsigned IPA** → Run workflow，填
+
+| 输入 | 值 |
+|---|---|
+| `bundle_id` | 你自己的唯一 id，例如 `io.github.<你的用户名>.iphoneuse` |
+| `strip_extensions` | `true`（去掉 `AgentWidget.appex` / `TunnelProvider.appex`） |
+| `name_suffix` | `-aisi`（产物变成 `iphone-use-app-unsigned-aisi.ipa`） |
+
+签名要点（来自爱思官方 FAQ）：
+
+- 先把手机 USB 连上，签名时选/填**这台**手机的设备标识（UDID）；签出来的 IPA 只能装这一台。
+- 需要 Apple ID 账号密码；开了双重认证的第一次会要验证码（iCloud 会多出一条
+  「iMac 27 寸、10.15.6」的登录记录，属正常，就是模拟 Xcode 申请证书）。
+- 签完**不会自动安装**：点「打开已签名 IPA 位置」，再双击用爱思助手安装。
+- 装好后到 设置 → 通用 → VPN与设备管理 信任证书。
+- 同样 7 天过期，同样受「3 个自签 App / 10 个 App ID 每周」限制。
+- 内建 VPN 依然没有（免费号签不了 Network Extension），运行时会回退到 LocalDevVPN。
+
 ## 3. Windows 上生成 pairing file：iDevicePair
 
 1. 从 [jkcoxson/idevice_pair releases](https://github.com/jkcoxson/idevice_pair/releases)
