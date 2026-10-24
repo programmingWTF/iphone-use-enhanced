@@ -166,17 +166,18 @@ struct AgentView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("会话列表", systemImage: "line.3.horizontal") { setMenu(true) }
                 }
-                // A round blue glass button: Settings moved to the drawer, so the top-right
-                // corner is a single circle.
+                // A round purple glass button, the same hue as the send button: Settings
+                // moved to the drawer, so the top-right corner is a single circle. On
+                // iOS 26 the tint goes through the button style, because the toolbar
+                // already draws glass behind its items.
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { select(nil) } label: {
                         Image(systemName: "square.and.pencil")
                             .font(.system(size: 15, weight: .semibold))
                             .frame(width: 38, height: 38)
                             .contentShape(Circle())
-                            .glassPill(GlassTint.blue, interactive: true)
                     }
-                    .buttonStyle(.haptic(.plain))
+                    .glassToolbarButton(GlassTint.purple)
                     .disabled(newSessionDisabled)
                     .opacity(newSessionDisabled ? 0.55 : 1)
                     .accessibilityLabel("新会话")
@@ -426,22 +427,25 @@ private struct ChatList: View {
             .overlay {
                 if agent.history.isEmpty { Text("还没有会话").foregroundStyle(.secondary) }
             }
+            // Capsule, not a rounded rectangle: the row is one line, and the ends should
+            // be fully round like the rest of the floating controls.
             Button(action: openShortcutsGuide) {
                 HStack {
                     Label("接入快捷指令与深链", systemImage: "link")
                     Spacer()
                     Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.haptic(.plain))
-            .glassSurface(nil, cornerRadius: 16, interactive: true)
+            .glassPill(nil, interactive: true)
             .padding(.horizontal, 8)
             HStack {
-                // Blue glass capsule at the same 50pt height as the round Settings button
-                // beside it, so the row sits level instead of reading like a thin tag.
+                // Purple, the same hue as the send button and the toolbar circle, at the
+                // same 50pt height as the Settings button beside it, so the row sits level
+                // instead of reading like a thin tag.
                 Button { select(nil) } label: {
                     Label("对话", systemImage: "square.and.pencil")
                         .font(.headline)
@@ -450,7 +454,7 @@ private struct ChatList: View {
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.haptic(.plain))
-                .glassPill(GlassTint.blue, interactive: true)
+                .glassPill(GlassTint.purple, interactive: true)
                 Spacer()
                 Button(action: openSettings) {
                     Image(systemName: "gearshape")
