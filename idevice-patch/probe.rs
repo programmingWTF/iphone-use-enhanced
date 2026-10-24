@@ -7,7 +7,9 @@
 use std::ptr::null_mut;
 use std::time::Duration;
 
-use idevice::core_device::hid::{ButtonState, IndigoHidClient, UniversalHidServiceClient};
+use idevice::core_device::hid::{
+    ButtonState, IndigoHidClient, KeyboardUsage, UniversalHidServiceClient,
+};
 use idevice::core_device::{
     CallInfoBlob, DisplayServiceClient, ImageFormat, ScreenCaptureServiceClient, build_screen_audio_offer,
     build_screen_video_offer, build_start_audio_parameters, build_start_video_parameters,
@@ -182,6 +184,11 @@ pub unsafe extern "C" fn probe_type(
 /// HID keycodes are US-ASCII only, so non-ASCII text never travels through them: the
 /// app puts the string on `UIPasteboard` and this keystroke drops it in.
 ///
+/// The chord goes through the universal-HID `mainKeyboard` surface first: it keeps a
+/// pressed-key set, so the report that carries `V` also still carries `Command` — a
+/// real chord. The Indigo keyboard path sends each key as its own event and several
+/// iOS builds drop the modifier, which lands as a plain `v`; it stays as a fallback.
+///
 /// # Safety
 /// Handles must be valid and come from this library.
 #[unsafe(no_mangle)]
@@ -195,14 +202,76 @@ pub unsafe extern "C" fn probe_paste(
     let res = run_sync_local(async move {
         let (a, h) = unsafe { (&mut (*adapter).0, &mut (*handshake).0) };
         let gate = open_gate(a, h).await;
-        let mut hid = IndigoHidClient::connect_rsd(a, h).await?;
-        hid.send_keyboard(LEFT_COMMAND, ButtonState::Down).await?;
-        tokio::time::sleep(Duration::from_millis(30)).await;
-        hid.send_keyboard(KEY_V, ButtonState::Down).await?;
-        hid.send_keyboard(KEY_V, ButtonState::Up).await?;
-        tokio::time::sleep(Duration::from_millis(30)).await;
-        hid.send_keyboard(LEFT_COMMAND, ButtonState::Up).await?;
-        tokio::time::sleep(Duration::from_millis(500)).await; // flush, see probe_touch
+        let mut chord_sent = false;
+        if let Ok(mut universal) = UniversalHidServiceClient::connect_rsd(a, h).await {
+            if let Ok(mut keyboard) = universal.create_main_keyboard().await {
+                let command = KeyboardUsage::new(LEFT_COMMAND as u16);
+                let v = KeyboardUsage::new(KEY_V as u16);
+                if let (Ok(command), Ok(v)) = (command, v) {
+                    let mut ok = universal
+                        .main_keyboard_key_down(&mut keyboard, command)
+                        .await
+                        .is_ok();
+                    tokio::time::sleep(Duration::from_millis(40)).await;
+                    ok &= universal
+                        .main_keyboard_key_down(&mut keyboard, v)
+                        .await
+                        .is_ok();
+                    tokio::time::sleep(Duration::from_millis(80)).await;
+                    let _ = universal.main_keyboard_key_up(&mut keyboard, v).await;
+                    let _ = universal.main_keyboard_key_up(&mut keyboard, command).await;
+                    let _ = universal.remove_main_keyboard(&mut keyboard).await;
+                    chord_sent = ok;
+                }
+            }
+        }
+        if !chord_sent {
+            let mut hid = IndigoHidClient::connect_rsd(a, h).await?;
+            hid.send_keyboard(LEFT_COMMAND, ButtonState::Down).await?;
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            hid.send_keyboard(KEY_V, ButtonState::Down).await?;
+            hid.send_keyboard(KEY_V, ButtonState::Up).await?;
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            hid.send_keyboard(LEFT_COMMAND, ButtonState::Up).await?;
+        }
+        tokio::time::sleep(Duration::from_millis(600)).await; // flush, see probe_touch
+        close_gate(gate).await;
+        Ok::<(), IdeviceError>(())
+    });
+    match res {
+        Ok(()) => null_mut(),
+        Err(e) => ffi_err!(e),
+    }
+}
+
+/// Presses and holds one point (normalized 0..65535) for `hold_ms`.
+///
+/// A long press on a text field opens the system edit menu, which is how a paste can
+/// be triggered when the target app ignores Command+V.
+///
+/// # Safety
+/// Handles must be valid and come from this library.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn probe_long_press(
+    adapter: *mut AdapterHandle,
+    handshake: *mut RsdHandshakeHandle,
+    x: u16,
+    y: u16,
+    hold_ms: u16,
+) -> *mut IdeviceFfiError {
+    if adapter.is_null() || handshake.is_null() {
+        return ffi_err!(IdeviceError::FfiInvalidArg);
+    }
+    let res = run_sync_local(async move {
+        let (a, h) = unsafe { (&mut (*adapter).0, &mut (*handshake).0) };
+        let gate = open_gate(a, h).await;
+        let mut hid = UniversalHidServiceClient::connect_rsd(a, h).await?;
+        let ts = || Some(unsafe { libc::mach_absolute_time() });
+        hid.send_touchscreen(TOUCH_CONTACT, x, y, ts()).await?;
+        tokio::time::sleep(Duration::from_millis(hold_ms.max(300) as u64)).await;
+        hid.send_touchscreen(TOUCH_RELEASE, x, y, ts()).await?;
+        hid.send_touchscreen(TOUCH_RELEASE, x, y, ts()).await?;
+        tokio::time::sleep(Duration::from_millis(500)).await;
         close_gate(gate).await;
         Ok::<(), IdeviceError>(())
     });

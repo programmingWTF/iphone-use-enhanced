@@ -368,6 +368,22 @@ extension DeviceSession {
         }
     }
 
+    /// Long press at a normalized point: opens the system edit menu on a text field.
+    func agentLongPress(at point: CGPoint, holdMillis: UInt16 = 700) throws {
+        func scale(_ v: CGFloat) -> UInt16 { UInt16(max(0, min(1, v)) * 65535) }
+        try IdeviceBridge.withTunnelHandles(for: self) { adapter, handshake in
+            if let ffiError = probe_long_press(
+                adapter,
+                handshake,
+                scale(point.x),
+                scale(point.y),
+                holdMillis
+            ) {
+                throw IdeviceBridge.consumeFFIError(ffiError, fallback: "长按失败", domain: "agent")
+            }
+        }
+    }
+
     func agentHome() throws {
         try IdeviceBridge.withTunnelHandles(for: self) { adapter, handshake in
             if let ffiError = probe_button(adapter, handshake, 0x0C, 0x40, 80) {

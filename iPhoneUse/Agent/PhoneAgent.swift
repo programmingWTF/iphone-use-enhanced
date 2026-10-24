@@ -420,6 +420,8 @@ final class PhoneAgent: ObservableObject {
         case "tap":
             let p = point("x", "y")
             try device.agentTouch(from: p, to: p)
+        case "long_press":
+            try device.agentLongPress(at: point("x", "y"))
         case "swipe":
             try device.agentTouch(from: point("x1", "y1"), to: point("x2", "y2"))
         case "type":
@@ -520,6 +522,9 @@ final class PhoneAgent: ObservableObject {
         }
         return [
             tool("tap", "Tap a point.", ["x": "x pixel", "y": "y pixel"]),
+            tool("long_press", "Press and hold a point (~0.9s). Use it on a text field to open the edit menu "
+                 + "(then tap 粘贴 in the next screenshot) when typing non-ASCII text did not paste.",
+                 ["x": "x pixel", "y": "y pixel"]),
             tool("swipe", "Drag from (x1,y1) to (x2,y2); swipe up to scroll down.",
                  ["x1": "start x", "y1": "start y", "x2": "end x", "y2": "end y"]),
             tool("type", "Type text into the focused field; any language (non-ASCII goes through the clipboard).",

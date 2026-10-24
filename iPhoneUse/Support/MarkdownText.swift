@@ -372,6 +372,10 @@ extension MarkdownBlock {
     ///
     /// Foundation's Markdown parser is deliberately not used here: it drops the emphasis inside
     /// Chinese text and cannot express task checkboxes, so the tiny grammar below is parsed by hand.
+    /// ASCII punctuation that a backslash can escape, per CommonMark. A model that
+    /// wants a literal `*` writes `\*`, exactly like on GitHub.
+    private static let escapable = Set("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
+
     static func inline(_ source: String) -> AttributedString {
         let characters = Array(source)
         var result = AttributedString()
@@ -386,7 +390,15 @@ extension MarkdownBlock {
         var i = 0
         while i < characters.count {
             let character = characters[i]
-            if character == "`" || character == "*" || character == "~" || character == "$" || character == "[" {
+            // Backslash escapes win over every inline rule: the escaped character is
+            // taken literally and cannot open or close emphasis.
+            if character == "\\", i + 1 < characters.count, escapable.contains(characters[i + 1]) {
+                plain.append(characters[i + 1])
+                i += 2
+                continue
+            }
+            if character == "`" || character == "*" || character == "_"
+                || character == "~" || character == "$" || character == "[" {
                 if let token = match(characters, at: i) {
                     flushPlain()
                     append(token.text, style: token.style, link: token.link, to: &result)
@@ -426,24 +438,8 @@ extension MarkdownBlock {
             )
         }
 
-        if character == "*" {
-            if has(characters, at: index, "***"),
-               let end = find("***", in: characters, from: index + 3), end > index + 3 {
-                return InlineToken(text: String(characters[(index + 3)..<end]),
-                                   style: [.bold, .italic], link: nil, next: end + 3)
-            }
-            if has(characters, at: index, "**"),
-               let end = find("**", in: characters, from: index + 2), end > index + 2 {
-                return InlineToken(text: String(characters[(index + 2)..<end]),
-                                   style: [.bold], link: nil, next: end + 2)
-            }
-            if let end = find("*", in: characters, from: index + 1), end > index + 1 {
-                let inner = String(characters[(index + 1)..<end])
-                if !inner.hasPrefix(" "), !inner.hasSuffix(" "), !inner.contains("\n") {
-                    return InlineToken(text: inner, style: [.italic], link: nil, next: end + 1)
-                }
-            }
-            return nil
+        if character == "*" || character == "_" {
+            return emphasis(characters, at: index, marker: character)
         }
 
         if character == "~" {
@@ -469,6 +465,39 @@ extension MarkdownBlock {
             return InlineToken(text: label, style: [], link: url, next: urlEnd + 1)
         }
 
+        return nil
+    }
+
+    /// `*` / `_` emphasis with CommonMark's flanking rules, so `2 * 3 * 4` and
+    /// `snake_case` stay literal while `*italic*`, `**bold**` and `***both***` work.
+    private static func emphasis(
+        _ characters: [Character],
+        at index: Int,
+        marker: Character
+    ) -> InlineToken? {
+        let previous = index > 0 ? characters[index - 1] : nil
+        func after(_ offset: Int) -> Character? {
+            index + offset < characters.count ? characters[index + offset] : nil
+        }
+        func isWord(_ character: Character) -> Bool { character.isLetter || character.isNumber }
+
+        for run in [3, 2, 1] {
+            guard has(characters, at: index, String(repeating: marker, count: run)),
+                  let opener = after(run), !opener.isWhitespace else { continue }
+            // Underscores are not emphasis inside a word: `snake_case_name` is literal.
+            if marker == "_", let previous, isWord(previous) { continue }
+            guard let end = find(
+                String(repeating: marker, count: run),
+                in: characters,
+                from: index + run
+            ), end > index + run else { continue }
+            guard !characters[end - 1].isWhitespace else { continue }
+            if marker == "_", let closer = after(end - index + run), isWord(closer) { continue }
+            let inner = String(characters[(index + run)..<end])
+            guard !inner.contains("\n") else { continue }
+            let style: InlineStyle = run == 3 ? [.bold, .italic] : (run == 2 ? [.bold] : [.italic])
+            return InlineToken(text: inner, style: style, link: nil, next: end + run)
+        }
         return nil
     }
 

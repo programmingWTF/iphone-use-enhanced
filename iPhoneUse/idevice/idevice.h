@@ -3071,6 +3071,21 @@ struct IdeviceFfiError *probe_touch(struct AdapterHandle *adapter,
                                     uint16_t y2);
 
 /**
+ * Presses and holds one point (normalized 0..65535) for `hold_ms`.
+ *
+ * A long press on a text field opens the system edit menu, which is how a paste can
+ * be triggered when the target app ignores Command+V.
+ *
+ * # Safety
+ * Handles must be valid and come from this library.
+ */
+struct IdeviceFfiError *probe_long_press(struct AdapterHandle *adapter,
+                                         struct RsdHandshakeHandle *handshake,
+                                         uint16_t x,
+                                         uint16_t y,
+                                         uint16_t hold_ms);
+
+/**
  * Presses a hardware button (HID usage page/code, e.g. home = 0x0C/0x40) for `hold_ms`.
  *
  * # Safety
