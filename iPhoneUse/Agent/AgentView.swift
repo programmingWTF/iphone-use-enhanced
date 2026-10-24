@@ -401,7 +401,7 @@ private struct ChatList: View {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     ForEach(agent.history) { run in
                         Button { select(run.id) } label: {
-                            historyRow(run, lifted: false)
+                            historyRow(run)
                         }
                         .buttonStyle(.haptic(.plain))
                         .contextMenu {
@@ -411,10 +411,8 @@ private struct ChatList: View {
                                 agent.deleteRun(run.id)
                             }
                         } preview: {
-                            // Only the copy that lifts under the finger wears the coloured
-                            // rim; the same row in the list never does.
-                            historyRow(run, lifted: true)
-                                .frame(width: max(width - 16, 0))
+                            // 参考 ChatGPT：抬起的是整张宽卡片，正文完整，不是原来那一行。
+                            historyPreview(run)
                         }
                     }
                 }
@@ -469,10 +467,8 @@ private struct ChatList: View {
         .frame(width: width, alignment: .leading)
     }
 
-    /// A history row, drawn twice: plain in the list, and with a coloured glass rim on the
-    /// copy the context menu lifts. The rim exists only on the lifted copy, so a row that
-    /// is merely sitting in the list never shows a border.
-    private func historyRow(_ run: RunRecord, lifted: Bool) -> some View {
+    /// 列表里的一行：单行、无边框。边框只属于抬起后的那张卡片，列表里任何一行都不画。
+    private func historyRow(_ run: RunRecord) -> some View {
         Text(run.prompt)
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -482,9 +478,32 @@ private struct ChatList: View {
                 run.id == (openRun ?? agent.liveRun?.id) ? Color(.secondarySystemFill) : .clear,
                 in: RoundedRectangle(cornerRadius: 14, style: .continuous)
             )
-            .glassOutline(lifted ? GlassTint.purple : nil,
-                          in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .contentShape(Rectangle())
+    }
+
+    /// 长按抬起的那张卡片：接近抽屉宽度，正文完整换行、字号放大，紫色玻璃加一圈受光的
+    /// 描边，让它是「一个立起来的物件」而不是浮在空中的文字。
+    private func historyPreview(_ run: RunRecord) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+        return VStack(alignment: .leading, spacing: 12) {
+            Text(run.prompt)
+                .font(.title3)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 6) {
+                Text(run.date.formatted(date: .abbreviated, time: .shortened))
+                if !run.model.isEmpty {
+                    Text("·")
+                    Text(run.model).lineLimit(1)
+                }
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+        .padding(20)
+        .frame(width: max(width - 24, 0), alignment: .leading)
+        .glassSurface(GlassTint.purple, in: shape)
+        .glassOutline(GlassTint.purple, in: shape)
     }
 }
 
