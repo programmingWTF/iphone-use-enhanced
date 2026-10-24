@@ -460,7 +460,7 @@ private struct ChatRow: View {
                 .padding(.leading, 48)
                 .textSelection(.enabled)
         case .assistant:
-            Text(entry.text).textSelection(.enabled)
+            MarkdownText(text: entry.text)
         case .step:
             Text(entry.text)
                 .font(.caption.monospaced())

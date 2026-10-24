@@ -1,0 +1,7 @@
+"Run Agent" = "运行 Agent";
+"Let the agent control this iPhone to do a task." = "让 Agent 操作这台 iPhone 来完成一个任务。";
+"Prompt" = "提示词";
+"What should I do?" = "要我做什么？";
+"Stop Agent" = "停止 Agent";
+"Get Last Agent Result" = "获取上次运行结果";
+"Read the result of the last run." = "读出上一次任务的结果。";

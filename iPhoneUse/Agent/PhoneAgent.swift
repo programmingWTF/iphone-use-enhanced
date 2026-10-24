@@ -48,6 +48,13 @@ final class PhoneAgent: ObservableObject {
     /// The run in progress, saved to history as it goes so a kill or reinstall mid-run keeps it.
     @Published private(set) var liveRun: RunRecord?
     private var task: Task<Void, Never>?
+    /// Shortcuts' "Run Agent" waits here for the outcome, so the next action can read it out.
+    private var finishWaiters: [CheckedContinuation<String, Never>] = []
+    private static let lastResultKey = "lastAgentResult"
+    /// The last outcome, kept in UserDefaults so the "Get Last Agent Result" intent can return it.
+    static var lastResult: String {
+        UserDefaults.standard.string(forKey: lastResultKey) ?? ""
+    }
     private var activity: Activity<AgentActivityAttributes>?
     private var activityState = AgentActivityAttributes.ContentState(step: 0, line: "Starting", running: true)
 
@@ -88,6 +95,10 @@ final class PhoneAgent: ObservableObject {
                 }
             }
             await say(outcome, as: .assistant, text: outcome.hasPrefix("done: ") ? String(outcome.dropFirst(6)) : outcome)
+            UserDefaults.standard.set(outcome, forKey: Self.lastResultKey)
+            let waiters = finishWaiters
+            finishWaiters = []
+            for waiter in waiters { waiter.resume(returning: outcome) }
             saveLiveRun(outcome: outcome)
             liveRun = nil
             // Pop on success, triple "nope" on failure; the user already knows when they hit Stop.
@@ -101,6 +112,16 @@ final class PhoneAgent: ObservableObject {
     func stop() {
         task?.cancel()
         answer("")
+    }
+
+    /// Starts a run and resolves once it ends, with the same outcome string it shows in the chat
+    /// ("done: …" on success, "error: …" otherwise). Used by the Shortcuts intent.
+    func runAndWait(prompt: String) async -> String {
+        guard !isRunning else { return "error: the agent is already running" }
+        return await withCheckedContinuation { continuation in
+            finishWaiters.append(continuation)
+            run(prompt: prompt)
+        }
     }
 
     func answer(_ text: String) {

@@ -39,6 +39,21 @@ final class LLMSettings: ObservableObject {
     ]
     static let voiceLanguages = ["en", "fr", "es", "de", "it", "pt", "nl", "ja", "zh", "ko", "hi", "ar", "ru"]
     static let defaultSystemPrompt = """
+    你代替机主操作这台 iPhone。每一步你都会拿到一张新的截图，并且必须调用恰好一个工具。\
+    坐标是这张截图里的像素（原点在左上角）。能直接 open_app 就别去桌面上找图标。\
+    要打字时先点一下输入框把键盘调起来，再调用 type（只支持 ASCII；"\\n" 表示回车）。\
+    动手之前，先用一句话说明你的判断。如果遇到只有机主才能提供的信息或选择，\
+    调用 ask_user_question，不要自己猜。任务完成、或确认做不到时，调用 done。
+
+    done 的 summary 会原样显示给机主，且按 Markdown 渲染，所以你可以用：\
+    标题（# / ##）、无序列表（- ）、有序列表（1. ）、**粗体**、`行内代码`、\
+    三反引号代码块、引用（>）和表格。写 summary 时先说结论，再列关键步骤，别长篇大论；\
+    除非是需要打到手机上的字面内容，用中文写。
+    """
+
+    /// The English prompt shipped before the app rendered Markdown. Kept only so an untouched
+    /// stored copy can be migrated to `defaultSystemPrompt` once.
+    static let legacyDefaultSystemPrompt = """
     You operate an iPhone on behalf of its owner. Every step you get a fresh screenshot and \
     must call exactly one tool. Coordinates are pixels in that screenshot (origin top-left). \
     Prefer open_app over hunting for icons. To type, first tap the text field so the keyboard \
@@ -77,7 +92,14 @@ final class LLMSettings: ObservableObject {
         customURL = defaults.string(forKey: "llmCustomURL") ?? ""
         model = defaults.string(forKey: "agentModelID") ?? Self.defaultModel
         maxSteps = defaults.object(forKey: "agentMaxSteps") as? Int ?? 40
-        systemPrompt = defaults.string(forKey: "agentSystemPrompt") ?? Self.defaultSystemPrompt
+        let storedPrompt = defaults.string(forKey: "agentSystemPrompt") ?? Self.defaultSystemPrompt
+        if storedPrompt == Self.legacyDefaultSystemPrompt {
+            // An untouched copy of the old English prompt: swap it for the Chinese one.
+            systemPrompt = Self.defaultSystemPrompt
+            defaults.set(Self.defaultSystemPrompt, forKey: "agentSystemPrompt")
+        } else {
+            systemPrompt = storedPrompt
+        }
         apiKey = Keychain.get("apiKey.\(provider.rawValue)") ?? ""
         voiceModel = defaults.string(forKey: "voiceModel") ?? Self.voiceModels[0]
         voiceLanguage = defaults.string(forKey: "voiceLanguage") ?? ""
