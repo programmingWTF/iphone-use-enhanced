@@ -177,9 +177,9 @@ struct AgentView: View {
     }
 
     private static let suggestions = [
-        ("message.fill", Color.green, "列出我未读的 WhatsApp 会话（不要打开它们）"),
-        ("car.fill", Color.primary, "帮我叫一辆 Uber 去最近的超市"),
-        ("creditcard.fill", Color.blue, "看看我的 Apple 订阅，推荐取消哪些"),
+        ("message.fill", Color.green, "看看微信里有没有等我回的消息，列出来，先别回"),
+        ("bag.fill", Color.orange, "用美团外卖点一份附近评分高的午饭，别超过 30 元"),
+        ("creditcard.fill", Color.blue, "打开支付宝，看看这个月的账单都花在哪了"),
     ]
 
     /// Starter prompts on a new chat, sitting just above the composer.

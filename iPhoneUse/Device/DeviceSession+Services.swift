@@ -378,15 +378,29 @@ extension DeviceSession {
 
     /// Types `text` on the focused field.
     ///
-    /// HID keycodes only cover US-ASCII, so anything else routes through the clipboard:
-    /// we put the string on the pasteboard and press Command+V.
+    /// Two routes, picked by the content itself:
+    ///
+    /// 1. **Clipboard route** — as soon as the text contains anything outside US-ASCII
+    ///    (Chinese, emoji, accented letters, …) the whole string goes through the
+    ///    pasteboard and we press Command+V. HID keycodes only know the US layout, so a
+    ///    single non-ASCII character would otherwise be dropped.
+    /// 2. **Keystroke route** — pure ASCII is typed key by key, which is faster and does
+    ///    not touch the pasteboard.
+    ///
+    /// The pasteboard write has to be finished *before* Command+V reaches the device,
+    /// so it is done synchronously (and verified by reading it back); otherwise the
+    /// target app pastes whatever the user had copied earlier.
     func agentType(_ text: String) throws {
         guard !text.isEmpty else { return }
         let viaClipboard = !text.allSatisfy(\.isASCII)
-        if viaClipboard {
-            Self.setOnPasteboard(text)
-        }
         try IdeviceBridge.withTunnelHandles(for: self) { adapter, handshake in
+            if viaClipboard {
+                // Route 1: put the whole string on the pasteboard, then press Command+V.
+                // The write is synchronous and verified, so the paste cannot pick up
+                // whatever the owner had copied earlier.
+                try Self.stageOnPasteboard(text)
+                Thread.sleep(forTimeInterval: 0.15)
+            }
             let ffiError = viaClipboard
                 ? probe_paste(adapter, handshake)
                 : probe_type(adapter, handshake, text)
@@ -400,12 +414,34 @@ extension DeviceSession {
         }
     }
 
-    private static func setOnPasteboard(_ text: String) {
-        if Thread.isMainThread {
+    /// Writes `text` to the shared pasteboard and blocks until it is really there.
+    private static func stageOnPasteboard(_ text: String) throws {
+        func writeOnce() -> Bool {
             UIPasteboard.general.string = text
-        } else {
-            DispatchQueue.main.async { UIPasteboard.general.string = text }
+            return UIPasteboard.general.string == text
         }
+
+        for attempt in 0..<3 {
+            var written = false
+            if Thread.isMainThread {
+                written = writeOnce()
+            } else {
+                let done = DispatchSemaphore(value: 0)
+                DispatchQueue.main.async {
+                    written = writeOnce()
+                    done.signal()
+                }
+                if done.wait(timeout: .now() + 2) == .timedOut {
+                    written = false
+                }
+            }
+            if written { return }
+            if attempt < 2 { Thread.sleep(forTimeInterval: 0.05) }
+        }
+        throw IdeviceBridge.makeError(
+            domain: "agent",
+            message: "剪贴板写入失败：系统剪贴板没有接受这段文字。"
+        )
     }
 
     func agentLaunch(bundleID: String) throws {

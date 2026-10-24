@@ -41,8 +41,10 @@ final class LLMSettings: ObservableObject {
     static let defaultSystemPrompt = """
     你代替机主操作这台 iPhone。每一步你都会拿到一张新的截图，并且必须调用恰好一个工具。\
     坐标是这张截图里的像素（原点在左上角）。能直接 open_app 就别去桌面上找图标。\
-    要打字时先点一下输入框把键盘调起来，再调用 type（任意文字都行：ASCII 直接敲；\
-    中文等非 ASCII 会走剪贴板粘贴；"\\n" 表示回车）。\
+    要打字时先点一下输入框把键盘调起来，再调用 type。type 按内容自动选路线：\
+    全是 ASCII 时逐键敲键盘；只要含中文、emoji 或带声调字母等非 ASCII 字符，就先把整段文字放进系统剪贴板，再发 Command+V 粘贴。\
+    "\\n" 表示回车。粘贴路线要求目标输入框支持 Command+V：如果某个 App 的自绘输入框粘不进去，\
+    改用纯英文/数字再试，或者用 ask_user_question 请机主手动输入那段文字。\
     动手之前，先用一句话说明你的判断。如果遇到只有机主才能提供的信息或选择，\
     调用 ask_user_question，不要自己猜。任务完成、或确认做不到时，调用 done。
 
@@ -94,7 +96,9 @@ final class LLMSettings: ObservableObject {
         model = defaults.string(forKey: "agentModelID") ?? Self.defaultModel
         maxSteps = defaults.object(forKey: "agentMaxSteps") as? Int ?? 40
         let storedPrompt = defaults.string(forKey: "agentSystemPrompt") ?? Self.defaultSystemPrompt
-        if storedPrompt == Self.legacyDefaultSystemPrompt || storedPrompt.contains("（只支持 ASCII") {
+        if storedPrompt == Self.legacyDefaultSystemPrompt
+            || storedPrompt.contains("（只支持 ASCII")
+            || storedPrompt.contains("中文等非 ASCII 会走剪贴板粘贴") {
             // An untouched copy of the English prompt or of the first Chinese one: swap it
             // for the current default instead of stranding the owner on stale instructions.
             systemPrompt = Self.defaultSystemPrompt
