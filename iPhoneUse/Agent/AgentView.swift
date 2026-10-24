@@ -167,17 +167,17 @@ struct AgentView: View {
                     Button("会话列表", systemImage: "line.3.horizontal") { setMenu(true) }
                 }
                 // A round purple glass button, the same hue as the send button: Settings
-                // moved to the drawer, so the top-right corner is a single circle. On
-                // iOS 26 the tint goes through the button style, because the toolbar
-                // already draws glass behind its items.
+                // moved to the drawer, so the top-right corner is a single circle. The
+                // circle is drawn here instead of going through the toolbar's glass
+                // button style, because that style shapes the item with the system's
+                // capsule border and the result is a rounded square, not a circle.
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { select(nil) } label: {
                         Image(systemName: "square.and.pencil")
                             .font(.system(size: 15, weight: .semibold))
-                            .frame(width: 38, height: 38)
-                            .contentShape(Circle())
+                            .glassCircle(GlassTint.purple)
                     }
-                    .glassToolbarButton(GlassTint.purple)
+                    .buttonStyle(.haptic(.plain))
                     .disabled(newSessionDisabled)
                     .opacity(newSessionDisabled ? 0.55 : 1)
                     .accessibilityLabel("新会话")
@@ -193,7 +193,8 @@ struct AgentView: View {
     ]
 
     /// Starter prompts on a new chat, sitting just above the composer.
-    /// Plain glass: the symbols keep their colour, the surface does not add one.
+    /// No glass at all: only a hairline rim, so the three starters stay quiet on a page
+    /// that already has the composer's glass above them.
     private var suggestions: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(Self.suggestions, id: \.2) { icon, tint, text in
@@ -213,7 +214,10 @@ struct AgentView: View {
                     .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(.haptic(.plain))
-                .glassSurface(cornerRadius: 16, interactive: true)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.14), lineWidth: 1)
+                }
             }
         }
         .padding(.horizontal, 20) // same inset as the status rows below
@@ -275,9 +279,7 @@ struct AgentView: View {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(canSend ? Color.primary : Color.secondary)
-                    .frame(width: 34, height: 34)
-                    .contentShape(Circle())
-                    .glassPill(canSend ? GlassTint.purple : nil, interactive: true)
+                    .glassCircle(canSend ? GlassTint.purple : nil)
             }
             .disabled(!canSend)
             .accessibilityLabel(agent.question == nil ? "发送" : "发送回答")
@@ -333,7 +335,7 @@ private struct MicButton: View {
         Image(systemName: voice.state == .recording ? "stop.fill" : "mic")
             .font(.system(size: voice.state == .recording ? 13 : 17, weight: .semibold))
             .foregroundStyle(enabled && voice.state != .transcribing ? Color.primary : .secondary)
-            .frame(width: 34, height: 34)
+            .frame(width: GlassMetrics.circle, height: GlassMetrics.circle)
             .background(Circle().fill(voice.state == .recording ? Color(.secondarySystemFill) : .clear))
             .contentShape(Circle())
             .gesture(DragGesture(minimumDistance: 0)
@@ -438,13 +440,13 @@ private struct ChatList: View {
             .padding(.horizontal, 8)
             HStack {
                 // Purple, the same hue as the send button and the toolbar circle, at the
-                // same 50pt height as the Settings button beside it, so the row sits level
-                // instead of reading like a thin tag.
+                // same 44pt height as the round Settings button beside it, so the row sits
+                // level instead of reading like a thin tag.
                 Button { select(nil) } label: {
                     Label("对话", systemImage: "square.and.pencil")
                         .font(.headline)
                         .padding(.horizontal, 22)
-                        .frame(height: 50)
+                        .frame(height: GlassMetrics.circle)
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.haptic(.plain))
@@ -454,8 +456,7 @@ private struct ChatList: View {
                     Image(systemName: "gearshape")
                         .font(.title3)
                         .foregroundStyle(.primary)
-                        .frame(width: 50, height: 50)
-                        .glassPill()
+                        .glassCircle()
                         .overlay(alignment: .topTrailing) { if needsSetup { BadgeDot().padding(6) } }
                 }
                 .buttonStyle(.haptic(.plain))
@@ -674,8 +675,7 @@ private struct ShotViewer: View {
                     Image(systemName: "xmark")
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.primary)
-                        .frame(width: 44, height: 44)
-                        .glassPill()
+                        .glassCircle()
                 }
                 .buttonStyle(.haptic(.plain))
                 .accessibilityLabel("关闭")

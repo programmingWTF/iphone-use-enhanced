@@ -33,13 +33,15 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     GlassSection("准备工作") {
                         NavigationLink { LLMSettingsView(settings: llm) } label: {
-                            CheckRow("模型 API 密钥", detail: llm.problem ?? "\(llm.provider.title) · \(llm.model)",
+                            CheckRow("模型 API 密钥", symbol: "cpu",
+                                     detail: llm.problem ?? "\(llm.provider.title) · \(llm.model)",
                                      state: llm.problem == nil ? .done : .error)
                         }
                         .glassRow()
                         GlassRowDivider()
                         Button { isShowingPairingFilePicker = true } label: {
-                            CheckRow("配对文件", detail: hasPairingFile ? "已导入。点击可替换。" : "点击导入。",
+                            CheckRow("配对文件", symbol: "doc.text",
+                                     detail: hasPairingFile ? "已导入。点击可替换。" : "点击导入。",
                                      state: hasPairingFile ? .done : .error)
                         }
                         .buttonStyle(.haptic(.plain))
@@ -53,12 +55,14 @@ struct SettingsView: View {
                         }
                         GlassRowDivider()
                         NavigationLink { ConnectionSettingsView(connection: connection) } label: {
-                            CheckRow("手机连接", detail: connection.step.summary, state: connection.step.checkState)
+                            CheckRow("手机连接", symbol: "iphone",
+                                     detail: connection.step.summary, state: connection.step.checkState)
                         }
                         .glassRow()
                         GlassRowDivider()
                         NavigationLink { BackgroundSettingsView(location: location) } label: {
-                            CheckRow("后台运行", detail: backgroundDetail, state: backgroundState)
+                            CheckRow("后台运行", symbol: "location",
+                                     detail: backgroundDetail, state: backgroundState)
                         }
                         .glassRow()
                     } footer: {
@@ -66,15 +70,25 @@ struct SettingsView: View {
                     }
 
                     GlassSection("语音") {
-                        Picker("模型", selection: $llm.voiceModel) {
+                        Picker(selection: $llm.voiceModel) {
                             ForEach(Set(LLMSettings.voiceModels + [llm.voiceModel]).sorted(), id: \.self) { Text($0).tag($0) }
+                        } label: {
+                            HStack(spacing: 12) {
+                                GlassRowIcon(name: "waveform")
+                                Text("模型")
+                            }
                         }
                         .glassRow()
                         GlassRowDivider()
-                        Picker("语言", selection: $llm.voiceLanguage) {
+                        Picker(selection: $llm.voiceLanguage) {
                             Text("自动检测").tag("")
                             ForEach(LLMSettings.voiceLanguages, id: \.self) {
                                 Text(Locale.current.localizedString(forLanguageCode: $0) ?? $0).tag($0)
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                GlassRowIcon(name: "globe")
+                                Text("语言")
                             }
                         }
                         .glassRow()
@@ -86,25 +100,42 @@ struct SettingsView: View {
                     .disabled(llm.provider != .openRouter)
 
                     GlassSection("智能体") {
-                        Stepper("最大步数：\(llm.maxSteps)", value: $llm.maxSteps, in: 5...500, step: 5)
-                            .glassRow()
+                        HStack(spacing: 12) {
+                            GlassRowIcon(name: "arrow.triangle.2.circlepath")
+                            Stepper("最大步数：\(llm.maxSteps)", value: $llm.maxSteps, in: 5...500, step: 5)
+                        }
+                        .glassRow()
                         GlassRowDivider()
                         NavigationLink {
                             SystemPromptEditor(settings: llm)
                         } label: {
-                            GlassDisclosureLabel { Text("系统提示词") }
+                            GlassDisclosureLabel {
+                                HStack(spacing: 12) {
+                                    GlassRowIcon(name: "text.alignleft")
+                                    Text("系统提示词")
+                                }
+                            }
                         }
                             .glassRow()
                         GlassRowDivider()
                         NavigationLink {
                             ShortcutsGuideView()
                         } label: {
-                            GlassDisclosureLabel { Text("快捷指令与深链") }
+                            GlassDisclosureLabel {
+                                HStack(spacing: 12) {
+                                    GlassRowIcon(name: "command")
+                                    Text("快捷指令与深链")
+                                }
+                            }
                         }
                             .glassRow()
                         GlassRowDivider()
-                        Button("清空历史", role: .destructive) { showClearHistoryConfirmation = true }
-                            .foregroundStyle(.red)
+                        Button(role: .destructive) { showClearHistoryConfirmation = true } label: {
+                            HStack(spacing: 12) {
+                                GlassRowIcon(name: "trash")
+                                Text("清空历史").foregroundStyle(.red)
+                            }
+                        }
                             .glassRow()
                             .confirmationDialog("删除所有会话？", isPresented: $showClearHistoryConfirmation, titleVisibility: .visible) {
                                 Button("清空历史", role: .destructive) { PhoneAgent.shared.clearHistory() }
@@ -112,17 +143,30 @@ struct SettingsView: View {
                     }
 
                     GlassSection("关于") {
-                        Link("GitHub", destination: Links.repo)
+                        Link(destination: Links.repo) {
+                            HStack(spacing: 12) {
+                                GlassRowIcon(name: "link")
+                                Text("GitHub")
+                            }
+                        }
                             .glassRow()
                         GlassRowDivider()
                         NavigationLink {
                             CreditsView()
                         } label: {
-                            GlassDisclosureLabel { Text("鸣谢") }
+                            GlassDisclosureLabel {
+                                HStack(spacing: 12) {
+                                    GlassRowIcon(name: "heart")
+                                    Text("鸣谢")
+                                }
+                            }
                         }
                             .glassRow()
                         GlassRowDivider()
-                        LabeledContent("版本", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
+                        HStack(spacing: 12) {
+                            GlassRowIcon(name: "info.circle")
+                            LabeledContent("版本", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
+                        }
                             .glassRow()
                     }
                 }
@@ -172,35 +216,44 @@ enum CheckState { case done, warning, error, working }
 
 private struct CheckRow: View {
     let title: String
+    let symbol: String
     let detail: String
     let state: CheckState
 
-    init(_ title: String, detail: String, state: CheckState) {
+    init(_ title: String, symbol: String, detail: String, state: CheckState) {
         self.title = title
+        self.symbol = symbol
         self.detail = detail
         self.state = state
     }
 
     var body: some View {
         HStack(spacing: 12) {
-            Group {
-                switch state {
-                case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                case .warning: Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange)
-                case .error: Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
-                case .working: ProgressView()
-                }
-            }
-            .font(.title3)
-            .frame(width: 28)
+            GlassRowIcon(name: symbol)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).foregroundStyle(.primary)
                 Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(3)
             }
             Spacer(minLength: 0)
+            statusMark
         }
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
+    }
+
+    /// The checklist state, trailing: the leading column is for "what is this row",
+    /// the trailing one is for "is it done".
+    @ViewBuilder
+    private var statusMark: some View {
+        Group {
+            switch state {
+            case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            case .warning: Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange)
+            case .error: Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+            case .working: ProgressView()
+            }
+        }
+        .font(.body)
     }
 }
 
@@ -233,23 +286,37 @@ private struct LLMSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 GlassSection {
-                    Picker("服务商", selection: $settings.provider) {
+                    Picker(selection: $settings.provider) {
                         ForEach(LLMProvider.allCases) { Text($0.title).tag($0) }
+                    } label: {
+                        HStack(spacing: 12) {
+                            GlassRowIcon(name: "cloud")
+                            Text("服务商")
+                        }
                     }
                     .glassRow()
                     if settings.provider == .custom {
                         GlassRowDivider()
-                        TextField("接口地址", text: $settings.customURL, prompt: Text(verbatim: "https://…/v1"))
-                            .keyboardType(.URL)
-                            .glassRow()
+                        HStack(spacing: 12) {
+                            GlassRowIcon(name: "link")
+                            TextField("接口地址", text: $settings.customURL, prompt: Text(verbatim: "https://…/v1"))
+                                .keyboardType(.URL)
+                        }
+                        .glassRow()
                     }
                     GlassRowDivider()
-                    SecureField("API 密钥", text: $settings.apiKey,
-                                prompt: Text(settings.provider == .custom ? "API 密钥（可选）" : "API 密钥"))
-                        .glassRow()
+                    HStack(spacing: 12) {
+                        GlassRowIcon(name: "key")
+                        SecureField("API 密钥", text: $settings.apiKey,
+                                    prompt: Text(settings.provider == .custom ? "API 密钥（可选）" : "API 密钥"))
+                    }
+                    .glassRow()
                     GlassRowDivider()
-                    ModelPicker(settings: settings)
-                        .glassRow()
+                    HStack(spacing: 12) {
+                        GlassRowIcon(name: "cube")
+                        ModelPicker(settings: settings)
+                    }
+                    .glassRow()
                 } footer: {
                     if settings.provider == .openRouter {
                         Link("获取 OpenRouter API 密钥", destination: Links.openRouterKeys)
@@ -261,12 +328,17 @@ private struct LLMSettingsView: View {
                 .autocorrectionDisabled()
 
                 GlassSection {
-                    Button(settings.provider == .openRouter ? "测试 OpenRouter 连接" : "测试连接") {
+                    Button {
                         isTesting = true
                         testMessage = nil
                         Task {
                             testMessage = await settings.testConnection()
                             isTesting = false
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            GlassRowIcon(name: "bolt")
+                            Text(settings.provider == .openRouter ? "测试 OpenRouter 连接" : "测试连接")
                         }
                     }
                     .disabled(isTesting)
@@ -308,20 +380,30 @@ private struct ConnectionSettingsView: View {
                 // The only coloured card in Settings: it reports the live connection state,
                 // so here the colour is the information.
                 GlassSection(tint: statusTint) {
-                    CheckRow("状态", detail: connection.step.summary, state: connection.step.checkState)
+                    CheckRow("状态", symbol: "iphone", detail: connection.step.summary, state: connection.step.checkState)
                         .glassRow()
                 }
 
                 GlassSection {
-                    Picker("VPN", selection: $vpnMode) {
+                    Picker(selection: $vpnMode) {
                         Text("内置").tag(VPNMode.builtIn)
                         Text("LocalDevVPN").tag(VPNMode.localDevVPN)
+                    } label: {
+                        HStack(spacing: 12) {
+                            GlassRowIcon(name: "network")
+                            Text("VPN")
+                        }
                     }
                     .glassRow()
                     GlassRowDivider()
-                    Button("重新连接") { Task { await connection.connect(force: true) } }
-                        .disabled(connection.step.checkState == .working || !connection.hasPairingFile)
-                        .glassRow()
+                    Button { Task { await connection.connect(force: true) } } label: {
+                        HStack(spacing: 12) {
+                            GlassRowIcon(name: "arrow.clockwise")
+                            Text("重新连接")
+                        }
+                    }
+                    .disabled(connection.step.checkState == .working || !connection.hasPairingFile)
+                    .glassRow()
                 } footer: {
                     if vpnMode == .builtIn {
                         Text("启动内置 VPN，连接这台 iPhone 的开发者服务并挂载开发者磁盘映像。")
@@ -334,9 +416,14 @@ private struct ConnectionSettingsView: View {
                 }
 
                 GlassSection {
-                    Button("重新下载开发者磁盘映像") { showDDIConfirmation = true }
-                        .disabled(isRedownloadingDDI)
-                        .glassRow()
+                    Button { showDDIConfirmation = true } label: {
+                        HStack(spacing: 12) {
+                            GlassRowIcon(name: "externaldrive")
+                            Text("重新下载开发者磁盘映像")
+                        }
+                    }
+                    .disabled(isRedownloadingDDI)
+                    .glassRow()
                     if isRedownloadingDDI {
                         DDIProgressCard(embedded: true)
                             .padding(.bottom, 14)
@@ -391,16 +478,29 @@ private struct BackgroundSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 GlassSection {
-                    LabeledContent("定位权限", value: authorizationText)
-                        .glassRow()
+                    HStack(spacing: 12) {
+                        GlassRowIcon(name: "location")
+                        LabeledContent("定位权限", value: authorizationText)
+                    }
+                    .glassRow()
                     if location.authorization == .notDetermined {
                         GlassRowDivider()
-                        Button("允许定位") { location.requestAuthorizationIfNeeded() }
-                            .glassRow()
+                        Button { location.requestAuthorizationIfNeeded() } label: {
+                            HStack(spacing: 12) {
+                                GlassRowIcon(name: "location.circle")
+                                Text("允许定位")
+                            }
+                        }
+                        .glassRow()
                     } else if location.authorization != .authorizedAlways {
                         GlassRowDivider()
-                        Button("打开 iOS 设置") {
+                        Button {
                             if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                        } label: {
+                            HStack(spacing: 12) {
+                                GlassRowIcon(name: "gearshape")
+                                Text("打开 iOS 设置")
+                            }
                         }
                         .glassRow()
                     }
@@ -409,23 +509,29 @@ private struct BackgroundSettingsView: View {
                 }
 
                 GlassSection {
-                    Toggle("静音音频", isOn: $keepAliveAudio)
-                        .onChange(of: keepAliveAudio) { _, enabled in
-                            if !enabled, !keepAliveLocation { keepAliveLocation = true }
-                            keepAliveDidChange()
-                        }
-                        .glassRow()
-                    GlassRowDivider()
-                    Toggle("后台定位", isOn: $keepAliveLocation)
-                        .onChange(of: keepAliveLocation) { _, enabled in
-                            if enabled {
-                                location.requestAuthorizationIfNeeded()
-                            } else if !keepAliveAudio {
-                                keepAliveAudio = true
+                    HStack(spacing: 12) {
+                        GlassRowIcon(name: "speaker.slash")
+                        Toggle("静音音频", isOn: $keepAliveAudio)
+                            .onChange(of: keepAliveAudio) { _, enabled in
+                                if !enabled, !keepAliveLocation { keepAliveLocation = true }
+                                keepAliveDidChange()
                             }
-                            keepAliveDidChange()
-                        }
-                        .glassRow()
+                    }
+                    .glassRow()
+                    GlassRowDivider()
+                    HStack(spacing: 12) {
+                        GlassRowIcon(name: "location")
+                        Toggle("后台定位", isOn: $keepAliveLocation)
+                            .onChange(of: keepAliveLocation) { _, enabled in
+                                if enabled {
+                                    location.requestAuthorizationIfNeeded()
+                                } else if !keepAliveAudio {
+                                    keepAliveAudio = true
+                                }
+                                keepAliveDidChange()
+                            }
+                    }
+                    .glassRow()
                 } footer: {
                     Text("让智能体在使用其他 App 时保持运行。至少需要开启一项。")
                 }
