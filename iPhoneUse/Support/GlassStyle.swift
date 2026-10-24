@@ -282,9 +282,9 @@ struct GlassDisclosureLabel<Content: View>: View {
     private let content: Content
     private let chevron: Color
 
-    /// `chevron` defaults to `.tertiary`; a section that keeps its rows in the plain label
-    /// colour (white on a dark theme) passes `.primary` so the arrow matches.
-    init(chevron: Color = .tertiary, @ViewBuilder content: () -> Content) {
+    /// `chevron` defaults to the secondary label colour; a section that keeps its rows in
+    /// the plain label colour (white on a dark theme) passes `.primary` so the arrow matches.
+    init(chevron: Color = .secondary, @ViewBuilder content: () -> Content) {
         self.chevron = chevron
         self.content = content()
     }
