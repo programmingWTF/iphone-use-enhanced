@@ -345,10 +345,6 @@ extension DeviceSession {
 // MARK: - Agent: CoreDevice screenshot / HID / launch on this same phone
 
 extension DeviceSession {
-    /// What the agent last asked the shared pasteboard to hold, so the app can verify the write
-    /// once it is back in front. Cleared by the audit that consumes it.
-    static var stagedClipboardText: String?
-
     func agentScreenshot(jpeg: Bool = true) throws -> Data {
         try IdeviceBridge.withTunnelHandles(for: self) { adapter, handshake in
             var bytes: UnsafeMutablePointer<UInt8>?
@@ -440,10 +436,6 @@ extension DeviceSession {
     /// that are not in front (the agent is driving another app while this runs), so a
     /// content read-back can come back nil even though the write landed.
     private static func stageOnPasteboard(_ text: String) throws {
-        // Only a foreground app can read the pasteboard back, so the real verdict arrives when
-        // the owner returns here; remember what we asked for and let `auditClipboard` report it.
-        stagedClipboardText = text
-
         /// `nil` means iOS would not tell us either way.
         func writeOnce() -> Bool? {
             let pasteboard = UIPasteboard.general
