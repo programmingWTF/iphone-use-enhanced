@@ -49,6 +49,28 @@ extension View {
         glassSurface(tint, in: Capsule(), interactive: interactive)
     }
 
+    /// One coloured glass rim, and nothing at all when `tint` is nil.
+    ///
+    /// Used by the history list: the rows themselves stay borderless, and only the copy
+    /// that lifts under the finger (a context menu preview) carries the rim. The gradient
+    /// catches the light at the top-left, then settles into the tint, which is what makes
+    /// a thin line read as an edge instead of a drawn stroke.
+    @ViewBuilder
+    func glassOutline<S: InsettableShape>(_ tint: Color?, in shape: S, lineWidth: CGFloat = 1.5) -> some View {
+        if let tint = tint {
+            overlay {
+                shape.strokeBorder(
+                    LinearGradient(colors: [Color.white.opacity(0.55), tint, tint.opacity(0.40)],
+                                   startPoint: .topLeading,
+                                   endPoint: .bottomTrailing),
+                    lineWidth: lineWidth
+                )
+            }
+        } else {
+            self
+        }
+    }
+
     /// A round toolbar button whose tint rides the system's own glass.
     ///
     /// The toolbar draws glass behind its items on iOS 26, so a `glassEffect` behind the

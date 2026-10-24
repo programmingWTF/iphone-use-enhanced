@@ -401,16 +401,7 @@ private struct ChatList: View {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     ForEach(agent.history) { run in
                         Button { select(run.id) } label: {
-                            Text(run.prompt)
-                                .lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 12)
-                                .background(
-                                    run.id == (openRun ?? agent.liveRun?.id) ? Color(.secondarySystemFill) : .clear,
-                                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                )
-                                .contentShape(Rectangle())
+                            historyRow(run, lifted: false)
                         }
                         .buttonStyle(.haptic(.plain))
                         .contextMenu {
@@ -419,6 +410,11 @@ private struct ChatList: View {
                                 if openRun == run.id { select(nil) }
                                 agent.deleteRun(run.id)
                             }
+                        } preview: {
+                            // Only the copy that lifts under the finger wears the coloured
+                            // rim; the same row in the list never does.
+                            historyRow(run, lifted: true)
+                                .frame(width: max(width - 16, 0))
                         }
                     }
                 }
@@ -471,6 +467,24 @@ private struct ChatList: View {
         }
         .padding(.vertical, 8)
         .frame(width: width, alignment: .leading)
+    }
+
+    /// A history row, drawn twice: plain in the list, and with a coloured glass rim on the
+    /// copy the context menu lifts. The rim exists only on the lifted copy, so a row that
+    /// is merely sitting in the list never shows a border.
+    private func historyRow(_ run: RunRecord, lifted: Bool) -> some View {
+        Text(run.prompt)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .background(
+                run.id == (openRun ?? agent.liveRun?.id) ? Color(.secondarySystemFill) : .clear,
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
+            .glassOutline(lifted ? GlassTint.purple : nil,
+                          in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
     }
 }
 
