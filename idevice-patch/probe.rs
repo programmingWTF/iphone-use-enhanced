@@ -177,7 +177,44 @@ pub unsafe extern "C" fn probe_type(
     }
 }
 
+/// Pastes whatever is on the device pasteboard into the focused field (Command+V).
+///
+/// HID keycodes are US-ASCII only, so non-ASCII text never travels through them: the
+/// app puts the string on `UIPasteboard` and this keystroke drops it in.
+///
+/// # Safety
+/// Handles must be valid and come from this library.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn probe_paste(
+    adapter: *mut AdapterHandle,
+    handshake: *mut RsdHandshakeHandle,
+) -> *mut IdeviceFfiError {
+    if adapter.is_null() || handshake.is_null() {
+        return ffi_err!(IdeviceError::FfiInvalidArg);
+    }
+    let res = run_sync_local(async move {
+        let (a, h) = unsafe { (&mut (*adapter).0, &mut (*handshake).0) };
+        let gate = open_gate(a, h).await;
+        let mut hid = IndigoHidClient::connect_rsd(a, h).await?;
+        hid.send_keyboard(LEFT_COMMAND, ButtonState::Down).await?;
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        hid.send_keyboard(KEY_V, ButtonState::Down).await?;
+        hid.send_keyboard(KEY_V, ButtonState::Up).await?;
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        hid.send_keyboard(LEFT_COMMAND, ButtonState::Up).await?;
+        tokio::time::sleep(Duration::from_millis(500)).await; // flush, see probe_touch
+        close_gate(gate).await;
+        Ok::<(), IdeviceError>(())
+    });
+    match res {
+        Ok(()) => null_mut(),
+        Err(e) => ffi_err!(e),
+    }
+}
+
 const LEFT_SHIFT: u64 = 0xE1;
+const LEFT_COMMAND: u64 = 0xE3;
+const KEY_V: u64 = 0x19;
 const TOUCH_CONTACT: u8 = 0xC2;
 const TOUCH_RELEASE: u8 = 0x02;
 

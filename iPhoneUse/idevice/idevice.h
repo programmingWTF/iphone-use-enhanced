@@ -3093,6 +3093,18 @@ struct IdeviceFfiError *probe_type(struct AdapterHandle *adapter,
                                    const char *text);
 
 /**
+ * Pastes the device pasteboard into the focused field (Command+V).
+ *
+ * HID keycodes are US-ASCII only, so non-ASCII text goes through the clipboard
+ * instead: the app writes `UIPasteboard` and this sends the keystroke.
+ *
+ * # Safety
+ * Handles must be valid and come from this library.
+ */
+struct IdeviceFfiError *probe_paste(struct AdapterHandle *adapter,
+                                    struct RsdHandshakeHandle *handshake);
+
+/**
  * Automatically creates and connects to Core Device Proxy, returning a client handle
  *
  * # Arguments

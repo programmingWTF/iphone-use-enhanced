@@ -522,7 +522,8 @@ final class PhoneAgent: ObservableObject {
             tool("tap", "Tap a point.", ["x": "x pixel", "y": "y pixel"]),
             tool("swipe", "Drag from (x1,y1) to (x2,y2); swipe up to scroll down.",
                  ["x1": "start x", "y1": "start y", "x2": "end x", "y2": "end y"]),
-            tool("type", "Type text into the focused field.", ["text": "text to type"], ["text": "string"]),
+            tool("type", "Type text into the focused field; any language (non-ASCII goes through the clipboard).",
+                 ["text": "text to type"], ["text": "string"]),
             tool("home", "Go to the home screen.", [:]),
             tool("open_app", "Launch an installed app by bundle id.", ["bundle_id": "bundle id"], ["bundle_id": "string"]),
             tool("ask_user_question", "Ask the phone's owner for missing information or a decision, then wait for the answer. "

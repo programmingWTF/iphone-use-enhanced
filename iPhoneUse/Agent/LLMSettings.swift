@@ -41,7 +41,8 @@ final class LLMSettings: ObservableObject {
     static let defaultSystemPrompt = """
     你代替机主操作这台 iPhone。每一步你都会拿到一张新的截图，并且必须调用恰好一个工具。\
     坐标是这张截图里的像素（原点在左上角）。能直接 open_app 就别去桌面上找图标。\
-    要打字时先点一下输入框把键盘调起来，再调用 type（只支持 ASCII；"\\n" 表示回车）。\
+    要打字时先点一下输入框把键盘调起来，再调用 type（任意文字都行：ASCII 直接敲；\
+    中文等非 ASCII 会走剪贴板粘贴；"\\n" 表示回车）。\
     动手之前，先用一句话说明你的判断。如果遇到只有机主才能提供的信息或选择，\
     调用 ask_user_question，不要自己猜。任务完成、或确认做不到时，调用 done。
 
@@ -93,8 +94,9 @@ final class LLMSettings: ObservableObject {
         model = defaults.string(forKey: "agentModelID") ?? Self.defaultModel
         maxSteps = defaults.object(forKey: "agentMaxSteps") as? Int ?? 40
         let storedPrompt = defaults.string(forKey: "agentSystemPrompt") ?? Self.defaultSystemPrompt
-        if storedPrompt == Self.legacyDefaultSystemPrompt {
-            // An untouched copy of the old English prompt: swap it for the Chinese one.
+        if storedPrompt == Self.legacyDefaultSystemPrompt || storedPrompt.contains("（只支持 ASCII") {
+            // An untouched copy of the English prompt or of the first Chinese one: swap it
+            // for the current default instead of stranding the owner on stale instructions.
             systemPrompt = Self.defaultSystemPrompt
             defaults.set(Self.defaultSystemPrompt, forKey: "agentSystemPrompt")
         } else {

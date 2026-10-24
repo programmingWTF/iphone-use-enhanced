@@ -376,11 +376,35 @@ extension DeviceSession {
         }
     }
 
+    /// Types `text` on the focused field.
+    ///
+    /// HID keycodes only cover US-ASCII, so anything else routes through the clipboard:
+    /// we put the string on the pasteboard and press Command+V.
     func agentType(_ text: String) throws {
+        guard !text.isEmpty else { return }
+        let viaClipboard = !text.allSatisfy(\.isASCII)
+        if viaClipboard {
+            Self.setOnPasteboard(text)
+        }
         try IdeviceBridge.withTunnelHandles(for: self) { adapter, handshake in
-            if let ffiError = probe_type(adapter, handshake, text) {
-                throw IdeviceBridge.consumeFFIError(ffiError, fallback: "Typing failed", domain: "agent")
+            let ffiError = viaClipboard
+                ? probe_paste(adapter, handshake)
+                : probe_type(adapter, handshake, text)
+            if let ffiError {
+                throw IdeviceBridge.consumeFFIError(
+                    ffiError,
+                    fallback: viaClipboard ? "Pasting failed" : "Typing failed",
+                    domain: "agent"
+                )
             }
+        }
+    }
+
+    private static func setOnPasteboard(_ text: String) {
+        if Thread.isMainThread {
+            UIPasteboard.general.string = text
+        } else {
+            DispatchQueue.main.async { UIPasteboard.general.string = text }
         }
     }
 
