@@ -437,7 +437,9 @@ private struct ChatList: View {
             }
             .buttonStyle(.haptic(.plain))
             .glassPill(nil, interactive: true)
-            .padding(.horizontal, 8)
+            // 与下面那排（「对话」+ 齿轮）同一个 20pt 内边距：三者的左右两端要齐平，
+            // 否则这一条会比下面两个按钮各宽 12pt，看着「长了一点点」。
+            .padding(.horizontal, 20)
             HStack {
                 // Purple, the same hue as the send button and the toolbar circle, at the
                 // same 44pt height as the round Settings button beside it, so the row sits
