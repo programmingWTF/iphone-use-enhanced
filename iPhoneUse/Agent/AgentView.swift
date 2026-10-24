@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct AgentView: View {
     @ObservedObject private var agent = PhoneAgent.shared
@@ -472,29 +473,83 @@ private struct ChatList: View {
 private struct ChatRow: View {
     let entry: ChatEntry
 
+    @State private var showingFullText = false
+    @State private var copied = false
+
     var body: some View {
         switch entry.kind {
         case .user:
             // Purple glass, the same hue as the send button: "from me" reads at a glance.
-            Text(entry.text)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .glassSurface(GlassTint.purple, cornerRadius: 20)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.leading, 48)
-                .textSelection(.enabled)
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(entry.text)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .glassSurface(GlassTint.purple, cornerRadius: 20)
+                    .contextMenu {
+                        Button { copyText() } label: {
+                            Label("复制", systemImage: "doc.on.doc")
+                        }
+                        Button { showingFullText = true } label: {
+                            Label("选择文本", systemImage: "text.cursor")
+                        }
+                    }
+                if copied { copiedBadge }
+            }
+            .animation(.easeOut(duration: 0.2), value: copied)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(.leading, 48)
+            .sheet(isPresented: $showingFullText) {
+                MessageTextSheet(text: entry.text, isMarkdown: false)
+            }
         case .assistant:
             // Plain glass for the agent: the reply shouldn't compete for colour.
-            MarkdownText(text: entry.text)
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .glassSurface(cornerRadius: 20)
-                .padding(.trailing, 24)
+            VStack(alignment: .leading, spacing: 6) {
+                MarkdownText(text: entry.text)
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .glassSurface(cornerRadius: 20)
+                    .contextMenu {
+                        Button { copyText() } label: {
+                            Label("复制", systemImage: "doc.on.doc")
+                        }
+                        Button { showingFullText = true } label: {
+                            Label("选择文本", systemImage: "text.cursor")
+                        }
+                    }
+                if copied { copiedBadge }
+            }
+            .animation(.easeOut(duration: 0.2), value: copied)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 24)
+            .sheet(isPresented: $showingFullText) {
+                MessageTextSheet(text: entry.text, isMarkdown: true)
+            }
         case .step:
             Text(entry.text)
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
+        }
+    }
+
+    /// Confirm the copy without an alert: a small pill under the bubble, gone in two seconds.
+    private var copiedBadge: some View {
+        Text("已复制")
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .glassPill()
+            .transition(.opacity)
+    }
+
+    /// The raw text, not the rendered markdown, so a reply pastes as the model wrote it.
+    private func copyText() {
+        UIPasteboard.general.string = entry.text
+        withAnimation(.easeOut(duration: 0.15)) { copied = true }
+        Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            withAnimation(.easeOut(duration: 0.15)) { copied = false }
         }
     }
 }
