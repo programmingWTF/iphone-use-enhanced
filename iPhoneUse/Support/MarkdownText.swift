@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Markdown for the agent's replies.
 ///
@@ -48,13 +49,7 @@ struct MarkdownText: View {
                 }
             }
         case .code(let code):
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(verbatim: code)
-                    .font(.system(.footnote, design: .monospaced))
-            }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(white: 0.5).opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            MarkdownCodeBlock(code: code)
         case .quote(let line):
             HStack(alignment: .top, spacing: 10) {
                 Capsule()
@@ -97,6 +92,51 @@ struct MarkdownBlock: Identifiable {
 
     let id: Int
     let kind: Kind
+}
+
+/// A fenced code block with a copy button, so a command or snippet can go straight to the clipboard.
+private struct MarkdownCodeBlock: View {
+    let code: String
+
+    @State private var copied = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Spacer()
+                Button {
+                    UIPasteboard.general.string = code
+                    withAnimation(.easeOut(duration: 0.15)) { copied = true }
+                    Task {
+                        try? await Task.sleep(nanoseconds: 1_600_000_000)
+                        withAnimation(.easeOut(duration: 0.15)) { copied = false }
+                    }
+                } label: {
+                    Label(copied ? "已复制" : "复制", systemImage: copied ? "checkmark" : "doc.on.doc")
+                        .font(.caption2)
+                        .foregroundStyle(copied ? Color.accentColor : Color.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(copied ? "已复制代码" : "复制代码")
+            }
+            .padding(.top, 6)
+            .padding(.trailing, 8)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                Text(verbatim: code)
+                    .font(.system(.footnote, design: .monospaced))
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 10)
+                    .padding(.top, 2)
+                    .padding(.bottom, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .background(Color(white: 0.5).opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
 }
 
 // MARK: - Parsing
