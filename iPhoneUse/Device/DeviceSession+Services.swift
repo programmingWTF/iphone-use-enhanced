@@ -394,89 +394,28 @@ extension DeviceSession {
 
     /// Types `text` on the focused field.
     ///
-    /// Two routes, picked by the content itself:
-    ///
-    /// 1. **Clipboard route** — as soon as the text contains anything outside US-ASCII
-    ///    (Chinese, emoji, accented letters, …) the whole string goes through the
-    ///    pasteboard and we press Command+V. HID keycodes only know the US layout, so a
-    ///    single non-ASCII character would otherwise be dropped.
-    /// 2. **Keystroke route** — pure ASCII is typed key by key, which is faster and does
-    ///    not touch the pasteboard.
-    ///
-    /// The pasteboard write has to be finished *before* Command+V reaches the device,
-    /// so it is done synchronously (and verified by reading it back); otherwise the
-    /// target app pastes whatever the user had copied earlier.
+    /// HID keycodes only know the US layout, so anything outside ASCII is refused with a
+    /// pointer at the workaround: iOS keeps the shared pasteboard away from apps that are not
+    /// in front (verified on device — the paste always produced whatever the owner had copied
+    /// before the run), so Chinese has to be typed as pinyin and committed from the keyboard's
+    /// candidate bar.
     func agentType(_ text: String) throws {
         guard !text.isEmpty else { return }
-        let viaClipboard = !text.allSatisfy(\.isASCII)
+        if let offender = text.first(where: { !$0.isASCII }) {
+            throw IdeviceBridge.makeError(
+                domain: "agent",
+                message: """
+                「\(offender)」不是 ASCII，键盘敲不出来（剪贴板在后台写不进去，这条路已废弃）。\
+                中文请先 type 拼音（例如「我要查天气」→ "wo yao cha tian qi"），\
+                再点键盘上方的候选栏选字；实在需要特殊字符就用 ask_user_question 请机主手动输入。
+                """
+            )
+        }
         try IdeviceBridge.withTunnelHandles(for: self) { adapter, handshake in
-            if viaClipboard {
-                // Route 1: put the whole string on the pasteboard, then press Command+V.
-                // The write is synchronous and verified, so the paste cannot pick up
-                // whatever the owner had copied earlier.
-                try Self.stageOnPasteboard(text)
-                Thread.sleep(forTimeInterval: 0.25)
-            }
-            let ffiError = viaClipboard
-                ? probe_paste(adapter, handshake)
-                : probe_type(adapter, handshake, text)
-            if let ffiError {
-                throw IdeviceBridge.consumeFFIError(
-                    ffiError,
-                    fallback: viaClipboard ? "粘贴失败" : "输入失败",
-                    domain: "agent"
-                )
+            if let ffiError = probe_type(adapter, handshake, text) {
+                throw IdeviceBridge.consumeFFIError(ffiError, fallback: "输入失败", domain: "agent")
             }
         }
-    }
-
-    /// Writes `text` to the shared pasteboard and waits until the write is really there.
-    ///
-    /// The check reads `changeCount` first: iOS keeps pasteboard *reads* away from apps
-    /// that are not in front (the agent is driving another app while this runs), so a
-    /// content read-back can come back nil even though the write landed.
-    private static func stageOnPasteboard(_ text: String) throws {
-        /// `nil` means iOS would not tell us either way.
-        func writeOnce() -> Bool? {
-            let pasteboard = UIPasteboard.general
-            let before = pasteboard.changeCount
-            pasteboard.string = text
-            if pasteboard.changeCount != before { return true }
-            if let current = pasteboard.string { return current == text }
-            return nil
-        }
-
-        var verdict: Bool?
-        for attempt in 0..<3 {
-            if Thread.isMainThread {
-                verdict = writeOnce()
-            } else {
-                let done = DispatchSemaphore(value: 0)
-                DispatchQueue.main.async {
-                    verdict = writeOnce()
-                    done.signal()
-                }
-                if done.wait(timeout: .now() + 2) == .timedOut {
-                    verdict = nil
-                }
-            }
-            if verdict == true {
-                DeviceSession.appendLog("clipboard: wrote \(text.count) chars")
-                return
-            }
-            if attempt < 2 { Thread.sleep(forTimeInterval: 0.08) }
-        }
-
-        // No answer from iOS is not evidence of failure: trust the write and let the next
-        // screenshot decide. Only a definite mismatch stops the run here.
-        guard verdict == false else {
-            DeviceSession.appendLog("clipboard: write unconfirmed, pasting anyway")
-            return
-        }
-        throw IdeviceBridge.makeError(
-            domain: "agent",
-            message: "剪贴板写入失败：系统剪贴板没有接受这段文字。请改用 long_press 长按输入框，再点「粘贴」。"
-        )
     }
 
     func agentLaunch(bundleID: String) throws {
