@@ -86,7 +86,7 @@ struct SettingsView: View {
                     .disabled(llm.provider != .openRouter)
 
                     GlassSection("智能体") {
-                        Stepper("最大步数：\(llm.maxSteps)", value: $llm.maxSteps, in: 5...200, step: 5)
+                        Stepper("最大步数：\(llm.maxSteps)", value: $llm.maxSteps, in: 5...500, step: 5)
                             .glassRow()
                         GlassRowDivider()
                         NavigationLink {

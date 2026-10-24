@@ -8,17 +8,33 @@ import UIKit
 /// styles each block, then parses the inline emphasis inside it.
 struct MarkdownText: View {
     let text: String
+    /// Off inside a chat bubble: a selectable reply would swallow the long-press menu.
+    let selectable: Bool
+
+    init(text: String, selectable: Bool = true) {
+        self.text = text
+        self.selectable = selectable
+    }
 
     private var blocks: [MarkdownBlock] { MarkdownBlock.parse(text) }
 
-    var body: some View {
+    private var blocksView: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(blocks) { block in
                 content(for: block)
             }
         }
+    }
+
+    var body: some View {
+        Group {
+            if selectable {
+                blocksView.textSelection(.enabled)
+            } else {
+                blocksView.textSelection(.disabled)
+            }
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .textSelection(.enabled)
     }
 
     @ViewBuilder
@@ -57,7 +73,7 @@ struct MarkdownText: View {
                 }
             }
         case .code(let language, let code):
-            MarkdownCodeBlock(language: language, code: code)
+            MarkdownCodeBlock(language: language, code: code, selectable: selectable)
         case .math(let formula):
             Text(verbatim: formula)
                 .font(.system(.callout, design: .serif))
@@ -124,6 +140,7 @@ struct MarkdownBlock: Identifiable {
 private struct MarkdownCodeBlock: View {
     let language: String?
     let code: String
+    let selectable: Bool
 
     @State private var copied = false
 
@@ -158,16 +175,25 @@ private struct MarkdownCodeBlock: View {
             .padding(.horizontal, 8)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                Text(verbatim: code)
-                    .font(.system(.footnote, design: .monospaced))
-                    .textSelection(.enabled)
-                    .padding(.horizontal, 10)
-                    .padding(.top, 2)
-                    .padding(.bottom, 10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Group {
+                    if selectable {
+                        codeText.textSelection(.enabled)
+                    } else {
+                        codeText.textSelection(.disabled)
+                    }
+                }
             }
         }
         .background(Color(white: 0.5).opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private var codeText: some View {
+        Text(verbatim: code)
+            .font(.system(.footnote, design: .monospaced))
+            .padding(.horizontal, 10)
+            .padding(.top, 2)
+            .padding(.bottom, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

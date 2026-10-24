@@ -504,7 +504,7 @@ private struct ChatRow: View {
         case .assistant:
             // Plain glass for the agent: the reply shouldn't compete for colour.
             VStack(alignment: .leading, spacing: 6) {
-                MarkdownText(text: entry.text)
+                MarkdownText(text: entry.text, selectable: false)
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .glassSurface(cornerRadius: 20)
