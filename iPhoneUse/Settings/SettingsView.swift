@@ -29,68 +29,105 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    NavigationLink { LLMSettingsView(settings: llm) } label: {
-                        CheckRow("模型 API 密钥", detail: llm.problem ?? "\(llm.provider.title) · \(llm.model)",
-                                 state: llm.problem == nil ? .done : .error)
-                    }
-                    Button { isShowingPairingFilePicker = true } label: {
-                        CheckRow("配对文件", detail: hasPairingFile ? "已导入。点击可替换。" : "点击导入。",
-                                 state: hasPairingFile ? .done : .error)
-                    }
-                    .buttonStyle(.haptic(.plain))
-                    if let pairingMessage {
-                        Text(pairingMessage.text)
-                            .font(.caption)
-                            .foregroundStyle(pairingMessage.isError ? .red : .secondary)
-                    }
-                    NavigationLink { ConnectionSettingsView(connection: connection) } label: {
-                        CheckRow("手机连接", detail: connection.step.summary, state: connection.step.checkState)
-                    }
-                    NavigationLink { BackgroundSettingsView(location: location) } label: {
-                        CheckRow("后台运行", detail: backgroundDetail, state: backgroundState)
-                    }
-                } header: {
-                    Text("准备工作")
-                } footer: {
-                    Link("如何获取配对文件", destination: Links.pairingFileGuide)
-                }
-
-                Section {
-                    Picker("模型", selection: $llm.voiceModel) {
-                        ForEach(Set(LLMSettings.voiceModels + [llm.voiceModel]).sorted(), id: \.self) { Text($0).tag($0) }
-                    }
-                    Picker("语言", selection: $llm.voiceLanguage) {
-                        Text("自动检测").tag("")
-                        ForEach(LLMSettings.voiceLanguages, id: \.self) {
-                            Text(Locale.current.localizedString(forLanguageCode: $0) ?? $0).tag($0)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    GlassSection("准备工作", tint: GlassTint.blue) {
+                        NavigationLink { LLMSettingsView(settings: llm) } label: {
+                            CheckRow("模型 API 密钥", detail: llm.problem ?? "\(llm.provider.title) · \(llm.model)",
+                                     state: llm.problem == nil ? .done : .error)
                         }
-                    }
-                } header: {
-                    Text("语音")
-                } footer: {
-                    Text(llm.provider == .openRouter
-                         ? "由 OpenRouter 用你的 API 密钥转写。手动指定语言比自动检测更快、更准确。"
-                         : "语音输入仅在服务商为 OpenRouter 时可用。")
-                }
-                .disabled(llm.provider != .openRouter)
-
-                Section("智能体") {
-                    Stepper("最大步数：\(llm.maxSteps)", value: $llm.maxSteps, in: 5...200, step: 5)
-                    NavigationLink("系统提示词") { SystemPromptEditor(settings: llm) }
-                    NavigationLink("快捷指令与深链") { ShortcutsGuideView() }
-                    Button("清空历史", role: .destructive) { showClearHistoryConfirmation = true }
-                        .confirmationDialog("删除所有会话？", isPresented: $showClearHistoryConfirmation, titleVisibility: .visible) {
-                            Button("清空历史", role: .destructive) { PhoneAgent.shared.clearHistory() }
+                        .glassRow()
+                        GlassRowDivider()
+                        Button { isShowingPairingFilePicker = true } label: {
+                            CheckRow("配对文件", detail: hasPairingFile ? "已导入。点击可替换。" : "点击导入。",
+                                     state: hasPairingFile ? .done : .error)
                         }
-                }
+                        .buttonStyle(.haptic(.plain))
+                        .glassRow()
+                        if let pairingMessage {
+                            Text(pairingMessage.text)
+                                .font(.caption)
+                                .foregroundStyle(pairingMessage.isError ? .red : .secondary)
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 12)
+                        }
+                        GlassRowDivider()
+                        NavigationLink { ConnectionSettingsView(connection: connection) } label: {
+                            CheckRow("手机连接", detail: connection.step.summary, state: connection.step.checkState)
+                        }
+                        .glassRow()
+                        GlassRowDivider()
+                        NavigationLink { BackgroundSettingsView(location: location) } label: {
+                            CheckRow("后台运行", detail: backgroundDetail, state: backgroundState)
+                        }
+                        .glassRow()
+                    } footer: {
+                        Link("如何获取配对文件", destination: Links.pairingFileGuide)
+                    }
 
-                Section("关于") {
-                    Link("GitHub", destination: Links.repo)
-                    NavigationLink("鸣谢") { CreditsView() }
-                    LabeledContent("版本", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
+                    GlassSection("语音", tint: GlassTint.teal) {
+                        Picker("模型", selection: $llm.voiceModel) {
+                            ForEach(Set(LLMSettings.voiceModels + [llm.voiceModel]).sorted(), id: \.self) { Text($0).tag($0) }
+                        }
+                        .glassRow()
+                        GlassRowDivider()
+                        Picker("语言", selection: $llm.voiceLanguage) {
+                            Text("自动检测").tag("")
+                            ForEach(LLMSettings.voiceLanguages, id: \.self) {
+                                Text(Locale.current.localizedString(forLanguageCode: $0) ?? $0).tag($0)
+                            }
+                        }
+                        .glassRow()
+                    } footer: {
+                        Text(llm.provider == .openRouter
+                             ? "由 OpenRouter 用你的 API 密钥转写。手动指定语言比自动检测更快、更准确。"
+                             : "语音输入仅在服务商为 OpenRouter 时可用。")
+                    }
+                    .disabled(llm.provider != .openRouter)
+
+                    GlassSection("智能体", tint: GlassTint.blue) {
+                        Stepper("最大步数：\(llm.maxSteps)", value: $llm.maxSteps, in: 5...200, step: 5)
+                            .glassRow()
+                        GlassRowDivider()
+                        NavigationLink {
+                            SystemPromptEditor(settings: llm)
+                        } label: {
+                            GlassDisclosureLabel { Text("系统提示词") }
+                        }
+                            .glassRow()
+                        GlassRowDivider()
+                        NavigationLink {
+                            ShortcutsGuideView()
+                        } label: {
+                            GlassDisclosureLabel { Text("快捷指令与深链") }
+                        }
+                            .glassRow()
+                        GlassRowDivider()
+                        Button("清空历史", role: .destructive) { showClearHistoryConfirmation = true }
+                            .foregroundStyle(.red)
+                            .glassRow()
+                            .confirmationDialog("删除所有会话？", isPresented: $showClearHistoryConfirmation, titleVisibility: .visible) {
+                                Button("清空历史", role: .destructive) { PhoneAgent.shared.clearHistory() }
+                            }
+                    }
+
+                    GlassSection("关于") {
+                        Link("GitHub", destination: Links.repo)
+                            .glassRow()
+                        GlassRowDivider()
+                        NavigationLink {
+                            CreditsView()
+                        } label: {
+                            GlassDisclosureLabel { Text("鸣谢") }
+                        }
+                            .glassRow()
+                        GlassRowDivider()
+                        LabeledContent("版本", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
+                            .glassRow()
+                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 18)
             }
             .navigationTitle("设置")
             .scrollDismissesKeyboard(.interactively)
@@ -193,46 +230,62 @@ private struct LLMSettingsView: View {
     @State private var testMessage: (text: String, isError: Bool)?
 
     var body: some View {
-        Form {
-            Section {
-                Picker("服务商", selection: $settings.provider) {
-                    ForEach(LLMProvider.allCases) { Text($0.title).tag($0) }
-                }
-                if settings.provider == .custom {
-                    TextField("接口地址", text: $settings.customURL, prompt: Text(verbatim: "https://…/v1"))
-                        .keyboardType(.URL)
-                }
-                SecureField("API 密钥", text: $settings.apiKey,
-                            prompt: Text(settings.provider == .custom ? "API 密钥（可选）" : "API 密钥"))
-                ModelPicker(settings: settings)
-            } footer: {
-                if settings.provider == .openRouter {
-                    Link("获取 OpenRouter API 密钥", destination: Links.openRouterKeys)
-                } else {
-                    Text("任意兼容 OpenAI 的接口，需支持图像识别和工具调用。语音输入仅在 OpenRouter 下可用。")
-                }
-            }
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-
-            Section {
-                Button(settings.provider == .openRouter ? "测试 OpenRouter 连接" : "测试连接") {
-                    isTesting = true
-                    testMessage = nil
-                    Task {
-                        testMessage = await settings.testConnection()
-                        isTesting = false
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                GlassSection(tint: GlassTint.blue) {
+                    Picker("服务商", selection: $settings.provider) {
+                        ForEach(LLMProvider.allCases) { Text($0.title).tag($0) }
+                    }
+                    .glassRow()
+                    if settings.provider == .custom {
+                        GlassRowDivider()
+                        TextField("接口地址", text: $settings.customURL, prompt: Text(verbatim: "https://…/v1"))
+                            .keyboardType(.URL)
+                            .glassRow()
+                    }
+                    GlassRowDivider()
+                    SecureField("API 密钥", text: $settings.apiKey,
+                                prompt: Text(settings.provider == .custom ? "API 密钥（可选）" : "API 密钥"))
+                        .glassRow()
+                    GlassRowDivider()
+                    ModelPicker(settings: settings)
+                        .glassRow()
+                } footer: {
+                    if settings.provider == .openRouter {
+                        Link("获取 OpenRouter API 密钥", destination: Links.openRouterKeys)
+                    } else {
+                        Text("任意兼容 OpenAI 的接口，需支持图像识别和工具调用。语音输入仅在 OpenRouter 下可用。")
                     }
                 }
-                .disabled(isTesting)
-                if isTesting {
-                    ProgressView()
-                } else if let testMessage {
-                    Text(testMessage.text)
-                        .font(.caption)
-                        .foregroundStyle(testMessage.isError ? .red : .green)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+
+                GlassSection(tint: GlassTint.teal) {
+                    Button(settings.provider == .openRouter ? "测试 OpenRouter 连接" : "测试连接") {
+                        isTesting = true
+                        testMessage = nil
+                        Task {
+                            testMessage = await settings.testConnection()
+                            isTesting = false
+                        }
+                    }
+                    .disabled(isTesting)
+                    .glassRow()
+                    if isTesting {
+                        ProgressView()
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
+                    } else if let testMessage {
+                        Text(testMessage.text)
+                            .font(.caption)
+                            .foregroundStyle(testMessage.isError ? .red : .green)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
+                    }
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 18)
         }
         .navigationTitle("模型 API 密钥")
         .scrollDismissesKeyboard(.interactively)
@@ -248,38 +301,53 @@ private struct ConnectionSettingsView: View {
     @State private var ddiMessage: (text: String, isError: Bool)?
 
     var body: some View {
-        Form {
-            Section {
-                CheckRow("状态", detail: connection.step.summary, state: connection.step.checkState)
-                Picker("VPN", selection: $vpnMode) {
-                    Text("内置").tag(VPNMode.builtIn)
-                    Text("LocalDevVPN").tag(VPNMode.localDevVPN)
-                }
-                Button("重新连接") { Task { await connection.connect(force: true) } }
-                    .disabled(connection.step.checkState == .working || !connection.hasPairingFile)
-            } footer: {
-                if vpnMode == .builtIn {
-                    Text("启动内置 VPN，连接这台 iPhone 的开发者服务并挂载开发者磁盘映像。")
-                } else {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("适用于没有 VPN 权限的构建（免费 Apple ID）。打开 LocalDevVPN，再点重新连接即可连上这台 iPhone 的开发者服务并挂载开发者磁盘映像。")
-                        Link("获取 LocalDevVPN", destination: VPNMode.localDevVPNURL)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                GlassSection(tint: GlassTint.teal) {
+                    CheckRow("状态", detail: connection.step.summary, state: connection.step.checkState)
+                        .glassRow()
+                    GlassRowDivider()
+                    Picker("VPN", selection: $vpnMode) {
+                        Text("内置").tag(VPNMode.builtIn)
+                        Text("LocalDevVPN").tag(VPNMode.localDevVPN)
+                    }
+                    .glassRow()
+                    GlassRowDivider()
+                    Button("重新连接") { Task { await connection.connect(force: true) } }
+                        .disabled(connection.step.checkState == .working || !connection.hasPairingFile)
+                        .glassRow()
+                } footer: {
+                    if vpnMode == .builtIn {
+                        Text("启动内置 VPN，连接这台 iPhone 的开发者服务并挂载开发者磁盘映像。")
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("适用于没有 VPN 权限的构建（免费 Apple ID）。打开 LocalDevVPN，再点重新连接即可连上这台 iPhone 的开发者服务并挂载开发者磁盘映像。")
+                            Link("获取 LocalDevVPN", destination: VPNMode.localDevVPNURL)
+                        }
                     }
                 }
-            }
-            Section {
-                Button("重新下载开发者磁盘映像") { showDDIConfirmation = true }
-                    .disabled(isRedownloadingDDI)
-                if isRedownloadingDDI {
-                    ProgressView(value: ddiProgress)
-                } else if let ddiMessage {
-                    Text(ddiMessage.text)
-                        .font(.caption)
-                        .foregroundStyle(ddiMessage.isError ? .red : .secondary)
+
+                GlassSection(tint: GlassTint.orange) {
+                    Button("重新下载开发者磁盘映像") { showDDIConfirmation = true }
+                        .disabled(isRedownloadingDDI)
+                        .glassRow()
+                    if isRedownloadingDDI {
+                        ProgressView(value: ddiProgress)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
+                    } else if let ddiMessage {
+                        Text(ddiMessage.text)
+                            .font(.caption)
+                            .foregroundStyle(ddiMessage.isError ? .red : .secondary)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
+                    }
+                } footer: {
+                    Text("仅在反复挂载失败时使用，比如 iOS 升级之后。")
                 }
-            } footer: {
-                Text("仅在反复挂载失败时使用，比如 iOS 升级之后。")
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 18)
         }
         .navigationTitle("手机连接")
         .confirmationDialog("重新下载开发者磁盘映像？", isPresented: $showDDIConfirmation, titleVisibility: .visible) {
@@ -310,37 +378,50 @@ private struct BackgroundSettingsView: View {
     @AppStorage("keepAliveLocation") private var keepAliveLocation = true
 
     var body: some View {
-        Form {
-            Section {
-                LabeledContent("定位权限", value: authorizationText)
-                if location.authorization == .notDetermined {
-                    Button("允许定位") { location.requestAuthorizationIfNeeded() }
-                } else if location.authorization != .authorizedAlways {
-                    Button("打开 iOS 设置") {
-                        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
-                    }
-                }
-            } footer: {
-                Text("后台定位只在权限为“始终”时才能让智能体保持运行。")
-            }
-            Section {
-                Toggle("静音音频", isOn: $keepAliveAudio)
-                    .onChange(of: keepAliveAudio) { _, enabled in
-                        if !enabled, !keepAliveLocation { keepAliveLocation = true }
-                        keepAliveDidChange()
-                    }
-                Toggle("后台定位", isOn: $keepAliveLocation)
-                    .onChange(of: keepAliveLocation) { _, enabled in
-                        if enabled {
-                            location.requestAuthorizationIfNeeded()
-                        } else if !keepAliveAudio {
-                            keepAliveAudio = true
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                GlassSection(tint: GlassTint.orange) {
+                    LabeledContent("定位权限", value: authorizationText)
+                        .glassRow()
+                    if location.authorization == .notDetermined {
+                        GlassRowDivider()
+                        Button("允许定位") { location.requestAuthorizationIfNeeded() }
+                            .glassRow()
+                    } else if location.authorization != .authorizedAlways {
+                        GlassRowDivider()
+                        Button("打开 iOS 设置") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                         }
-                        keepAliveDidChange()
+                        .glassRow()
                     }
-            } footer: {
-                Text("让智能体在使用其他 App 时保持运行。至少需要开启一项。")
+                } footer: {
+                    Text("后台定位只在权限为“始终”时才能让智能体保持运行。")
+                }
+
+                GlassSection(tint: GlassTint.orange) {
+                    Toggle("静音音频", isOn: $keepAliveAudio)
+                        .onChange(of: keepAliveAudio) { _, enabled in
+                            if !enabled, !keepAliveLocation { keepAliveLocation = true }
+                            keepAliveDidChange()
+                        }
+                        .glassRow()
+                    GlassRowDivider()
+                    Toggle("后台定位", isOn: $keepAliveLocation)
+                        .onChange(of: keepAliveLocation) { _, enabled in
+                            if enabled {
+                                location.requestAuthorizationIfNeeded()
+                            } else if !keepAliveAudio {
+                                keepAliveAudio = true
+                            }
+                            keepAliveDidChange()
+                        }
+                        .glassRow()
+                } footer: {
+                    Text("让智能体在使用其他 App 时保持运行。至少需要开启一项。")
+                }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 18)
         }
         .navigationTitle("后台运行")
     }

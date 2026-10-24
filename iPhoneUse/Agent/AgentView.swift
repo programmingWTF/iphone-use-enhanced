@@ -132,7 +132,7 @@ struct AgentView: View {
                     ConnectionStatus(connection: connection, openSettings: { showSettings = true })
                         .padding(.horizontal, 16)
                         .frame(minHeight: 40)
-                        .glass(in: Capsule())
+                        .glassPill()
                         .padding(.horizontal, 12)
                         .padding(.top, 4)
                         .transition(.move(edge: .top).combined(with: .opacity))
@@ -151,9 +151,8 @@ struct AgentView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                         }
-                        .buttonStyle(.haptic(.borderedProminent))
+                        .glassButton(prominent: true, tint: .red)
                         .buttonBorderShape(.capsule)
-                        .tint(.red)
                         .padding(.horizontal, 12)
                     }
                     composer
@@ -183,8 +182,9 @@ struct AgentView: View {
     ]
 
     /// Starter prompts on a new chat, sitting just above the composer.
+    /// Each one is a tinted glass chip: same tint for all three, the symbol keeps its color.
     private var suggestions: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             ForEach(Self.suggestions, id: \.2) { icon, tint, text in
                 Button {
                     prompt = text
@@ -196,11 +196,13 @@ struct AgentView: View {
                         Text(text).foregroundStyle(.secondary).multilineTextAlignment(.leading)
                     }
                     .font(.body)
+                    .padding(.horizontal, 14)
                     .padding(.vertical, 12)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
+                    .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(.haptic(.plain))
+                .glassSurface(GlassTint.orange, cornerRadius: 16, interactive: true)
             }
         }
         .padding(.horizontal, 20) // same inset as the status rows below
@@ -267,7 +269,7 @@ struct AgentView: View {
         .padding(.leading, 8)
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .onTapGesture { composerFocused = true }
-        .glass(in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .glassSurface(GlassTint.blue, cornerRadius: 26)
         .sensoryFeedback(.start, trigger: voice.state) { _, new in new == .recording }
         .sensoryFeedback(.stop, trigger: voice.state) { old, _ in old == .recording }
         .sensoryFeedback(.error, trigger: voice.error) { _, new in new != nil }
@@ -417,23 +419,22 @@ private struct ChatList: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.haptic(.plain))
+            .glassSurface(nil, cornerRadius: 16, interactive: true)
             .padding(.horizontal, 8)
             HStack {
                 Button { select(nil) } label: {
                     Label("对话", systemImage: "square.and.pencil")
                         .font(.headline)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 22)
-                        .padding(.vertical, 14)
-                        .background(Color.accentColor, in: Capsule())
                 }
+                .glassButton(prominent: true)
+                .buttonBorderShape(.capsule)
                 Spacer()
                 Button(action: openSettings) {
                     Image(systemName: "gearshape")
                         .font(.title3)
                         .foregroundStyle(.primary)
                         .frame(width: 50, height: 50)
-                        .glass(in: Circle())
+                        .glassPill()
                         .overlay(alignment: .topTrailing) { if needsSetup { BadgeDot().padding(6) } }
                 }
                 .buttonStyle(.haptic(.plain))
@@ -460,7 +461,13 @@ private struct ChatRow: View {
                 .padding(.leading, 48)
                 .textSelection(.enabled)
         case .assistant:
+            // A tinted glass bubble for the agent; the user bubble stays a solid fill so
+            // its text keeps full contrast.
             MarkdownText(text: entry.text)
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassSurface(GlassTint.teal, cornerRadius: 20)
+                .padding(.trailing, 24)
         case .step:
             Text(entry.text)
                 .font(.caption.monospaced())
@@ -546,7 +553,7 @@ private struct ShotViewer: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .glass(in: Capsule())
+            .glassPill()
             .frame(maxWidth: .infinity)
             .overlay(alignment: .trailing) {
                 Button { dismiss() } label: {
@@ -554,7 +561,7 @@ private struct ShotViewer: View {
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.primary)
                         .frame(width: 44, height: 44)
-                        .glass(in: Circle())
+                        .glassPill()
                 }
                 .buttonStyle(.haptic(.plain))
                 .accessibilityLabel("关闭")
@@ -626,6 +633,8 @@ private struct StepCard: View {
             }
         }
         .frame(width: 150, alignment: .leading)
+        .padding(10)
+        .glassSurface(nil, cornerRadius: 20)
         .textSelection(.enabled)
         .opacity(shown ? 1 : 0)
         .offset(y: shown ? 0 : 12)
@@ -656,20 +665,10 @@ private struct PulsingDots: View {
                     .animation(.easeInOut(duration: 0.6).repeatForever().delay(Double(i) * 0.2), value: on)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .glassPill()
         .onAppear { on = true }
-    }
-}
-
-private extension View {
-    /// Liquid Glass on iOS 26+, frosted material before. Glass sits behind the
-    /// content so it doesn't wash out solid controls (the black send button).
-    @ViewBuilder func glass(in shape: some Shape) -> some View {
-        if #available(iOS 26, *) {
-            background { Color.clear.glassEffect(.regular, in: shape) }
-        } else {
-            background(.ultraThinMaterial, in: shape)
-        }
     }
 }
 
@@ -733,11 +732,11 @@ private struct ConnectionStatus: View {
                 // Without a pairing file, connecting fails instantly with the same message: send to Settings instead.
                 if connection.hasPairingFile {
                     Button("连接") { connect() }
-                        .buttonStyle(.haptic(.bordered))
+                        .glassButton()
                         .controlSize(.small)
                 } else {
                     Button("去设置", action: openSettings)
-                        .buttonStyle(.haptic(.bordered))
+                        .glassButton()
                         .controlSize(.small)
                 }
             }

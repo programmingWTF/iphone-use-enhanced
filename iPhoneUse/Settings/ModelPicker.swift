@@ -50,6 +50,7 @@ struct ModelSelectionView: View {
                         .onSubmit(useCustomID)
                     Button("使用该模型 ID", action: useCustomID)
                         .disabled(customID.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .glassButton(prominent: true)
                 } header: {
                     Text("自定义模型")
                 } footer: {
