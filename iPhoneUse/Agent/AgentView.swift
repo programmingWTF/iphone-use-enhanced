@@ -171,6 +171,11 @@ struct AgentView: View {
                 // circle is drawn here instead of going through the toolbar's glass
                 // button style, because that style shapes the item with the system's
                 // capsule border and the result is a rounded square, not a circle.
+                //
+                // On iOS 26 the bar would also put this item in the shared Liquid Glass
+                // capsule, which showed as a ring of plain glass around the circle — the
+                // "plain glass under coloured glass" the owner kept seeing. Asking for no
+                // shared background leaves the purple circle alone in the corner.
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { select(nil) } label: {
                         Image(systemName: "square.and.pencil")
@@ -182,6 +187,7 @@ struct AgentView: View {
                     .opacity(newSessionDisabled ? 0.55 : 1)
                     .accessibilityLabel("新会话")
                 }
+                .withoutSharedBackground()
             }
         }
     }

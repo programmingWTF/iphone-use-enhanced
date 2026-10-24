@@ -35,7 +35,8 @@ struct SettingsView: View {
                         NavigationLink { LLMSettingsView(settings: llm) } label: {
                             CheckRow("模型 API 密钥", symbol: "cpu",
                                      detail: llm.problem ?? "\(llm.provider.title) · \(llm.model)",
-                                     state: llm.problem == nil ? .done : .error)
+                                     state: llm.problem == nil ? .done : .error,
+                                     tint: Color.blue)
                         }
                         .glassRow()
                         GlassRowDivider()
@@ -57,13 +58,15 @@ struct SettingsView: View {
                         GlassRowDivider()
                         NavigationLink { ConnectionSettingsView(connection: connection) } label: {
                             CheckRow("手机连接", symbol: "iphone",
-                                     detail: connection.step.summary, state: connection.step.checkState)
+                                     detail: connection.step.summary, state: connection.step.checkState,
+                                     tint: Color.blue)
                         }
                         .glassRow()
                         GlassRowDivider()
                         NavigationLink { BackgroundSettingsView(location: location) } label: {
                             CheckRow("后台运行", symbol: "location",
-                                     detail: backgroundDetail, state: backgroundState)
+                                     detail: backgroundDetail, state: backgroundState,
+                                     tint: Color.blue)
                         }
                         .glassRow()
                     } footer: {
@@ -118,10 +121,13 @@ struct SettingsView: View {
                         NavigationLink {
                             SystemPromptEditor(settings: llm)
                         } label: {
-                            GlassDisclosureLabel {
+                            // `NavigationLink` draws its label in the accent colour outside a
+                            // Form; these rows stay in the plain label colour so the section
+                            // reads like the rest of the settings.
+                            GlassDisclosureLabel(chevron: Color.primary) {
                                 HStack(spacing: 12) {
-                                    GlassRowIcon(name: "text.alignleft")
-                                    Text("系统提示词")
+                                    GlassRowIcon(name: "text.alignleft", tint: Color.primary)
+                                    Text("系统提示词").foregroundStyle(.primary)
                                 }
                             }
                         }
@@ -130,10 +136,10 @@ struct SettingsView: View {
                         NavigationLink {
                             ShortcutsGuideView()
                         } label: {
-                            GlassDisclosureLabel {
+                            GlassDisclosureLabel(chevron: Color.primary) {
                                 HStack(spacing: 12) {
-                                    GlassRowIcon(name: "command")
-                                    Text("快捷指令与深链")
+                                    GlassRowIcon(name: "command", tint: Color.primary)
+                                    Text("快捷指令与深链").foregroundStyle(.primary)
                                 }
                             }
                         }
@@ -245,7 +251,12 @@ private struct CheckRow: View {
             GlassRowIcon(name: symbol, tint: tint)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).foregroundStyle(tint ?? Color.primary)
-                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(3)
+                // A tinted row tints its caption too, one notch lighter so the title still
+                // leads; the trailing check/cross keeps its own green/red.
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(tint.map { $0.opacity(0.8) } ?? Color.secondary)
+                    .lineLimit(3)
             }
             Spacer(minLength: 0)
             statusMark

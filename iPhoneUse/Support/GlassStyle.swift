@@ -83,10 +83,10 @@ extension View {
     /// same diameter and none of them turn into a rounded square on iOS 26, where a
     /// toolbar item would otherwise be shaped by the system's own button border.
     ///
-    /// A coloured circle also gets a base coat of its own colour, painted twice, before
-    /// the glass goes on. Without it the navigation bar's material shows through the
-    /// semi-transparent tint and the button reads as plain glass under coloured glass;
-    /// the second coat is what makes the colour sit on its own.
+    /// A coloured circle also gets a base coat of its own colour before the glass goes on,
+    /// so the navigation bar's material cannot show through the semi-transparent tint. One
+    /// coat is enough now that the toolbar hides its own shared glass (see
+    /// `withoutSharedBackground`); a second coat only made the colour heavy.
     func glassCircle(_ tint: Color? = nil,
                      size: CGFloat = GlassMetrics.circle,
                      weight: GlassWeight = .standard,
@@ -95,7 +95,7 @@ extension View {
             .contentShape(Circle())
             .background {
                 if let tint = tint {
-                    Circle().fill(tint).overlay(Circle().fill(tint))
+                    Circle().fill(tint)
                 }
             }
             .glassSurface(tint, in: Circle(), weight: weight, interactive: interactive)
@@ -280,8 +280,12 @@ struct GlassRowDivider: View {
 /// so outside one the row would look inert.
 struct GlassDisclosureLabel<Content: View>: View {
     private let content: Content
+    private let chevron: Color
 
-    init(@ViewBuilder content: () -> Content) {
+    /// `chevron` defaults to `.tertiary`; a section that keeps its rows in the plain label
+    /// colour (white on a dark theme) passes `.primary` so the arrow matches.
+    init(chevron: Color = .tertiary, @ViewBuilder content: () -> Content) {
+        self.chevron = chevron
         self.content = content()
     }
 
@@ -291,7 +295,7 @@ struct GlassDisclosureLabel<Content: View>: View {
             Spacer(minLength: 0)
             Image(systemName: "chevron.right")
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(chevron)
         }
     }
 }
@@ -315,5 +319,23 @@ struct GlassRowIcon: View {
             .font(.body)
             .foregroundStyle(tint ?? Color.secondary)
             .frame(width: 22)
+    }
+}
+
+/// Keeps a toolbar item out of the system's shared Liquid Glass capsule.
+///
+/// On iOS 26 the navigation bar puts toolbar items from the same logical group into one
+/// shared glass background. Our round purple button lives inside that group, so the
+/// capsule showed as a grey rim around the circle — which read as "plain glass under
+/// coloured glass". iOS 26 can hide the shared background; before that there is none to
+/// hide, so this returns the item untouched.
+extension ToolbarContent {
+    @ToolbarContentBuilder
+    func withoutSharedBackground() -> some ToolbarContent {
+        if #available(iOS 26, *) {
+            sharedBackgroundVisibility(.hidden)
+        } else {
+            self
+        }
     }
 }
