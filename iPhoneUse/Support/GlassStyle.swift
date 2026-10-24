@@ -3,8 +3,9 @@
 //  iPhoneUse
 //
 //  Liquid Glass on iOS 26, frosted material on iOS 17.4.
-//  Restrained by design: at most two tints per screen, low opacity, so the glass
-//  reads as glass and the color is only seasoning.
+//  Colour is an identity signal here, not decoration: purple is "from me", blue is
+//  "start something new", and the vivid green/red sit on the one card that reports a
+//  live connection state. Every other surface is plain, untinted glass.
 //
 
 import SwiftUI
@@ -12,12 +13,14 @@ import SwiftUI
 /// The tints allowed on glass. Each is a system color at low opacity, because the
 /// glass supplies most of the color on iOS 26 and the material does on older systems.
 enum GlassTint {
-    /// Primary interaction: the composer, the main settings group.
+    /// The new-session buttons, and the status card while a connection is being made.
     static let blue = Color.blue.opacity(0.22)
-    /// Output and state: agent replies, the phone-connection group.
-    static let teal = Color.teal.opacity(0.20)
-    /// Starter prompts and the setup/reminder group.
-    static let orange = Color.orange.opacity(0.18)
+    /// The user's own messages and the send button: the one hue that means "you".
+    static let purple = Color.purple.opacity(0.32)
+    /// The connection status card, connected.
+    static let success = Color.green.opacity(0.34)
+    /// The connection status card, failed or not connected yet.
+    static let failure = Color.red.opacity(0.34)
 }
 
 extension View {

@@ -31,7 +31,7 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    GlassSection("准备工作", tint: GlassTint.blue) {
+                    GlassSection("准备工作") {
                         NavigationLink { LLMSettingsView(settings: llm) } label: {
                             CheckRow("模型 API 密钥", detail: llm.problem ?? "\(llm.provider.title) · \(llm.model)",
                                      state: llm.problem == nil ? .done : .error)
@@ -65,7 +65,7 @@ struct SettingsView: View {
                         Link("如何获取配对文件", destination: Links.pairingFileGuide)
                     }
 
-                    GlassSection("语音", tint: GlassTint.teal) {
+                    GlassSection("语音") {
                         Picker("模型", selection: $llm.voiceModel) {
                             ForEach(Set(LLMSettings.voiceModels + [llm.voiceModel]).sorted(), id: \.self) { Text($0).tag($0) }
                         }
@@ -85,7 +85,7 @@ struct SettingsView: View {
                     }
                     .disabled(llm.provider != .openRouter)
 
-                    GlassSection("智能体", tint: GlassTint.blue) {
+                    GlassSection("智能体") {
                         Stepper("最大步数：\(llm.maxSteps)", value: $llm.maxSteps, in: 5...200, step: 5)
                             .glassRow()
                         GlassRowDivider()
@@ -232,7 +232,7 @@ private struct LLMSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                GlassSection(tint: GlassTint.blue) {
+                GlassSection {
                     Picker("服务商", selection: $settings.provider) {
                         ForEach(LLMProvider.allCases) { Text($0.title).tag($0) }
                     }
@@ -260,7 +260,7 @@ private struct LLMSettingsView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
 
-                GlassSection(tint: GlassTint.teal) {
+                GlassSection {
                     Button(settings.provider == .openRouter ? "测试 OpenRouter 连接" : "测试连接") {
                         isTesting = true
                         testMessage = nil
@@ -305,10 +305,14 @@ private struct ConnectionSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                GlassSection(tint: GlassTint.teal) {
+                // The only coloured card in Settings: it reports the live connection state,
+                // so here the colour is the information.
+                GlassSection(tint: statusTint) {
                     CheckRow("状态", detail: connection.step.summary, state: connection.step.checkState)
                         .glassRow()
-                    GlassRowDivider()
+                }
+
+                GlassSection {
                     Picker("VPN", selection: $vpnMode) {
                         Text("内置").tag(VPNMode.builtIn)
                         Text("LocalDevVPN").tag(VPNMode.localDevVPN)
@@ -329,7 +333,7 @@ private struct ConnectionSettingsView: View {
                     }
                 }
 
-                GlassSection(tint: GlassTint.orange) {
+                GlassSection {
                     Button("重新下载开发者磁盘映像") { showDDIConfirmation = true }
                         .disabled(isRedownloadingDDI)
                         .glassRow()
@@ -356,6 +360,15 @@ private struct ConnectionSettingsView: View {
         }
     }
 
+    /// Green when connected, red for anything the user has to act on, blue while working.
+    private var statusTint: Color {
+        switch connection.step.checkState {
+        case .done: GlassTint.success
+        case .warning, .error: GlassTint.failure
+        case .working: GlassTint.blue
+        }
+    }
+
     private func redownloadDDI() {
         ddiMessage = nil
         Task {
@@ -377,7 +390,7 @@ private struct BackgroundSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                GlassSection(tint: GlassTint.orange) {
+                GlassSection {
                     LabeledContent("定位权限", value: authorizationText)
                         .glassRow()
                     if location.authorization == .notDetermined {
@@ -395,7 +408,7 @@ private struct BackgroundSettingsView: View {
                     Text("后台定位只在权限为“始终”时才能让智能体保持运行。")
                 }
 
-                GlassSection(tint: GlassTint.orange) {
+                GlassSection {
                     Toggle("静音音频", isOn: $keepAliveAudio)
                         .onChange(of: keepAliveAudio) { _, enabled in
                             if !enabled, !keepAliveLocation { keepAliveLocation = true }

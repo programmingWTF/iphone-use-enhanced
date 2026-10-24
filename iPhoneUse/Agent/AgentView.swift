@@ -165,13 +165,20 @@ struct AgentView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("会话列表", systemImage: "line.3.horizontal") { setMenu(true) }
                 }
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("新会话", systemImage: "square.and.pencil") { select(nil) }
-                        .disabled(openRun == nil && (agent.entries.isEmpty || agent.isRunning))
-                    Button { showSettings = true } label: {
-                        Image(systemName: "gearshape").overlay(alignment: .topTrailing) { if needsSetup { BadgeDot() } }
+                // A round blue glass button: Settings moved to the drawer, so the top-right
+                // corner is a single circle.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { select(nil) } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 15, weight: .semibold))
+                            .frame(width: 38, height: 38)
+                            .contentShape(Circle())
+                            .glassPill(GlassTint.blue, interactive: true)
                     }
-                    .accessibilityLabel(needsSetup ? "设置，需先完成配置" : "设置")
+                    .buttonStyle(.haptic(.plain))
+                    .disabled(newSessionDisabled)
+                    .opacity(newSessionDisabled ? 0.55 : 1)
+                    .accessibilityLabel("新会话")
                 }
             }
         }
@@ -184,7 +191,7 @@ struct AgentView: View {
     ]
 
     /// Starter prompts on a new chat, sitting just above the composer.
-    /// Each one is a tinted glass chip: same tint for all three, the symbol keeps its color.
+    /// Plain glass: the symbols keep their colour, the surface does not add one.
     private var suggestions: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(Self.suggestions, id: \.2) { icon, tint, text in
@@ -204,7 +211,7 @@ struct AgentView: View {
                     .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(.haptic(.plain))
-                .glassSurface(GlassTint.orange, cornerRadius: 16, interactive: true)
+                .glassSurface(cornerRadius: 16, interactive: true)
             }
         }
         .padding(.horizontal, 20) // same inset as the status rows below
@@ -217,6 +224,11 @@ struct AgentView: View {
         if llm.problem != nil { return true }
         if case .failed = connection.step { return true }
         return false
+    }
+
+    /// Nothing to clear on a fresh, idle chat.
+    private var newSessionDisabled: Bool {
+        openRun == nil && (agent.entries.isEmpty || agent.isRunning)
     }
 
     private var isConnected: Bool {
@@ -256,12 +268,14 @@ struct AgentView: View {
             if composerEnabled {
                 MicButton(voice: voice, enabled: llm.voiceAvailable) { finishVoice(send: false) }
             }
+            // The same purple glass as the user's own bubble.
             Button(action: send) {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(Color(.systemBackground))
+                    .foregroundStyle(canSend ? Color.primary : Color.secondary)
                     .frame(width: 34, height: 34)
-                    .background(Circle().fill(canSend ? Color.primary : Color.secondary.opacity(0.4)))
+                    .contentShape(Circle())
+                    .glassPill(canSend ? GlassTint.purple : nil, interactive: true)
             }
             .disabled(!canSend)
             .accessibilityLabel(agent.question == nil ? "发送" : "发送回答")
@@ -271,7 +285,8 @@ struct AgentView: View {
         .padding(.leading, 8)
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .onTapGesture { composerFocused = true }
-        .glassSurface(GlassTint.blue, cornerRadius: 26)
+        // Plain glass: only the send button carries the purple.
+        .glassSurface(cornerRadius: 26)
         .sensoryFeedback(.start, trigger: voice.state) { _, new in new == .recording }
         .sensoryFeedback(.stop, trigger: voice.state) { old, _ in old == .recording }
         .sensoryFeedback(.error, trigger: voice.error) { _, new in new != nil }
@@ -424,12 +439,17 @@ private struct ChatList: View {
             .glassSurface(nil, cornerRadius: 16, interactive: true)
             .padding(.horizontal, 8)
             HStack {
+                // Blue glass capsule at the same 50pt height as the round Settings button
+                // beside it, so the row sits level instead of reading like a thin tag.
                 Button { select(nil) } label: {
                     Label("对话", systemImage: "square.and.pencil")
                         .font(.headline)
+                        .padding(.horizontal, 22)
+                        .frame(height: 50)
+                        .contentShape(Capsule())
                 }
-                .glassButton(prominent: true)
-                .buttonBorderShape(.capsule)
+                .buttonStyle(.haptic(.plain))
+                .glassPill(GlassTint.blue, interactive: true)
                 Spacer()
                 Button(action: openSettings) {
                     Image(systemName: "gearshape")
@@ -455,20 +475,20 @@ private struct ChatRow: View {
     var body: some View {
         switch entry.kind {
         case .user:
+            // Purple glass, the same hue as the send button: "from me" reads at a glance.
             Text(entry.text)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(Color(.secondarySystemFill), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .glassSurface(GlassTint.purple, cornerRadius: 20)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.leading, 48)
                 .textSelection(.enabled)
         case .assistant:
-            // A tinted glass bubble for the agent; the user bubble stays a solid fill so
-            // its text keeps full contrast.
+            // Plain glass for the agent: the reply shouldn't compete for colour.
             MarkdownText(text: entry.text)
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .glassSurface(GlassTint.teal, cornerRadius: 20)
+                .glassSurface(cornerRadius: 20)
                 .padding(.trailing, 24)
         case .step:
             Text(entry.text)

@@ -28,7 +28,7 @@ struct ShortcutsGuideView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                GlassSection("快捷指令", tint: GlassTint.orange) {
+                GlassSection("快捷指令") {
                     Step(1, "打开「快捷指令」App，点右上角 + 新建一个快捷指令。")
                         .glassRow()
                     GlassRowDivider()
@@ -49,7 +49,7 @@ struct ShortcutsGuideView: View {
                     Text("不做任何设置，也可以直接对 Siri 说「询问 iPhone Use」。")
                 }
 
-                GlassSection("深链", tint: GlassTint.blue) {
+                GlassSection("深链") {
                     Text(DeepLink.example)
                         .font(.callout.monospaced())
                         .textSelection(.enabled)

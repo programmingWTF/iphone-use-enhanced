@@ -24,7 +24,7 @@ struct DDIProgressCard: View {
             } else {
                 details
                     .padding(14)
-                    .glassSurface(GlassTint.blue, cornerRadius: 20)
+                    .glassSurface(cornerRadius: 20)
                     .padding(.horizontal, 12)
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
