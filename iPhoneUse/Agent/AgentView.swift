@@ -141,6 +141,8 @@ struct AgentView: View {
             .animation(.snappy, value: connection.step)
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 8) {
+                    DDIProgressCard()
+                        .animation(.snappy, value: DDIDownloadCenter.shared.isRunning)
                     if let error = voice.error {
                         Text(error).font(.footnote).foregroundStyle(.red).padding(.horizontal, 20)
                     }
@@ -719,7 +721,13 @@ private struct ConnectionStatus: View {
                 Text("未连接").foregroundStyle(.secondary)
             case .working(let message):
                 ProgressView().controlSize(.mini)
-                Text(message).foregroundStyle(.secondary)
+                if DDIDownloadCenter.shared.isRunning {
+                    Text("\(message) \(Int((DDIDownloadCenter.shared.fraction * 100).rounded()))%")
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
+                } else {
+                    Text(message).foregroundStyle(.secondary)
+                }
             case .ready:
                 Image(systemName: "circle.fill").foregroundStyle(.green)
                 Text("已连接这台 iPhone")

@@ -296,9 +296,11 @@ private struct ConnectionSettingsView: View {
     @ObservedObject var connection: Connection
     @AppStorage(VPNMode.key) private var vpnMode = VPNMode.builtIn
     @State private var showDDIConfirmation = false
-    @State private var isRedownloadingDDI = false
-    @State private var ddiProgress = 0.0
     @State private var ddiMessage: (text: String, isError: Bool)?
+
+    /// The download center owns the state for both the automatic download and a manual
+    /// one, so the button and the card below always agree on whether one is running.
+    private var isRedownloadingDDI: Bool { DDIDownloadCenter.shared.isRunning }
 
     var body: some View {
         ScrollView {
@@ -332,9 +334,8 @@ private struct ConnectionSettingsView: View {
                         .disabled(isRedownloadingDDI)
                         .glassRow()
                     if isRedownloadingDDI {
-                        ProgressView(value: ddiProgress)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 12)
+                        DDIProgressCard(embedded: true)
+                            .padding(.bottom, 14)
                     } else if let ddiMessage {
                         Text(ddiMessage.text)
                             .font(.caption)
@@ -356,18 +357,14 @@ private struct ConnectionSettingsView: View {
     }
 
     private func redownloadDDI() {
-        isRedownloadingDDI = true
         ddiMessage = nil
         Task {
             do {
-                try await DeveloperDiskImageService.shared.redownload { progress, _ in
-                    Task { @MainActor in ddiProgress = progress }
-                }
+                try await DeveloperDiskImageService.shared.redownload()
                 ddiMessage = ("开发者磁盘映像已下载。", false)
             } catch {
                 ddiMessage = ("下载失败：\(error.localizedDescription)", true)
             }
-            isRedownloadingDDI = false
         }
     }
 }
