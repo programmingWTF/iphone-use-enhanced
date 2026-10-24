@@ -32,11 +32,11 @@ struct SettingsView: View {
             Form {
                 Section {
                     NavigationLink { LLMSettingsView(settings: llm) } label: {
-                        CheckRow("Model API Key", detail: llm.problem ?? "\(llm.provider.title) · \(llm.model)",
+                        CheckRow("模型 API 密钥", detail: llm.problem ?? "\(llm.provider.title) · \(llm.model)",
                                  state: llm.problem == nil ? .done : .error)
                     }
                     Button { isShowingPairingFilePicker = true } label: {
-                        CheckRow("Pairing file", detail: hasPairingFile ? "Imported. Tap to replace." : "Tap to import.",
+                        CheckRow("配对文件", detail: hasPairingFile ? "已导入。点击可替换。" : "点击导入。",
                                  state: hasPairingFile ? .done : .error)
                     }
                     .buttonStyle(.haptic(.plain))
@@ -46,53 +46,53 @@ struct SettingsView: View {
                             .foregroundStyle(pairingMessage.isError ? .red : .secondary)
                     }
                     NavigationLink { ConnectionSettingsView(connection: connection) } label: {
-                        CheckRow("Phone connection", detail: connection.step.summary, state: connection.step.checkState)
+                        CheckRow("手机连接", detail: connection.step.summary, state: connection.step.checkState)
                     }
                     NavigationLink { BackgroundSettingsView(location: location) } label: {
-                        CheckRow("Run in background", detail: backgroundDetail, state: backgroundState)
+                        CheckRow("后台运行", detail: backgroundDetail, state: backgroundState)
                     }
                 } header: {
-                    Text("Setup")
+                    Text("准备工作")
                 } footer: {
-                    Link("How to get a pairing file", destination: Links.pairingFileGuide)
+                    Link("如何获取配对文件", destination: Links.pairingFileGuide)
                 }
 
                 Section {
-                    Picker("Model", selection: $llm.voiceModel) {
+                    Picker("模型", selection: $llm.voiceModel) {
                         ForEach(Set(LLMSettings.voiceModels + [llm.voiceModel]).sorted(), id: \.self) { Text($0).tag($0) }
                     }
-                    Picker("Language", selection: $llm.voiceLanguage) {
-                        Text("Auto-detect").tag("")
+                    Picker("语言", selection: $llm.voiceLanguage) {
+                        Text("自动检测").tag("")
                         ForEach(LLMSettings.voiceLanguages, id: \.self) {
                             Text(Locale.current.localizedString(forLanguageCode: $0) ?? $0).tag($0)
                         }
                     }
                 } header: {
-                    Text("Voice")
+                    Text("语音")
                 } footer: {
                     Text(llm.provider == .openRouter
-                         ? "Transcribed by OpenRouter with your API key. Setting the language is faster and more accurate than auto-detect."
-                         : "Voice input only works with the OpenRouter provider.")
+                         ? "由 OpenRouter 用你的 API 密钥转写。手动指定语言比自动检测更快、更准确。"
+                         : "语音输入仅在服务商为 OpenRouter 时可用。")
                 }
                 .disabled(llm.provider != .openRouter)
 
-                Section("Agent") {
-                    Stepper("Max steps: \(llm.maxSteps)", value: $llm.maxSteps, in: 5...200, step: 5)
-                    NavigationLink("System Prompt") { SystemPromptEditor(settings: llm) }
-                    NavigationLink("Shortcuts & Deep Link") { ShortcutsGuideView() }
-                    Button("Clear History", role: .destructive) { showClearHistoryConfirmation = true }
-                        .confirmationDialog("Delete all sessions?", isPresented: $showClearHistoryConfirmation, titleVisibility: .visible) {
-                            Button("Clear History", role: .destructive) { PhoneAgent.shared.clearHistory() }
+                Section("智能体") {
+                    Stepper("最大步数：\(llm.maxSteps)", value: $llm.maxSteps, in: 5...200, step: 5)
+                    NavigationLink("系统提示词") { SystemPromptEditor(settings: llm) }
+                    NavigationLink("快捷指令与深链") { ShortcutsGuideView() }
+                    Button("清空历史", role: .destructive) { showClearHistoryConfirmation = true }
+                        .confirmationDialog("删除所有会话？", isPresented: $showClearHistoryConfirmation, titleVisibility: .visible) {
+                            Button("清空历史", role: .destructive) { PhoneAgent.shared.clearHistory() }
                         }
                 }
 
-                Section("About") {
+                Section("关于") {
                     Link("GitHub", destination: Links.repo)
-                    NavigationLink("Credits") { CreditsView() }
-                    LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
+                    NavigationLink("鸣谢") { CreditsView() }
+                    LabeledContent("版本", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
                 }
             }
-            .navigationTitle("Settings")
+            .navigationTitle("设置")
             .scrollDismissesKeyboard(.interactively)
         }
         .task { await connection.connect() } // no-op when connected; retries after a failure
@@ -106,10 +106,10 @@ struct SettingsView: View {
             do {
                 try PairingFileStore.importFromPicker(result.get())
                 hasPairingFile = true
-                pairingMessage = ("Imported. Connecting…", false)
+                pairingMessage = ("已导入，正在连接…", false)
                 Task { await connection.connect(force: true) }
             } catch {
-                pairingMessage = ("Import failed: \(error.localizedDescription)", true)
+                pairingMessage = ("导入失败：\(error.localizedDescription)", true)
             }
         }
     }
@@ -121,12 +121,12 @@ struct SettingsView: View {
     }
 
     private var backgroundDetail: String {
-        if !keepAliveLocation && location.authorization != .denied { return "Silent audio" }
+        if !keepAliveLocation && location.authorization != .denied { return "静音音频" }
         switch location.authorization {
-        case .authorizedAlways: return "Silent audio + location"
-        case .notDetermined: return "Allow location access for reliability"
-        case .authorizedWhenInUse: return "Set location access to Always"
-        default: return "Location refused: silent audio only"
+        case .authorizedAlways: return "静音音频 + 定位"
+        case .notDetermined: return "允许定位以提升稳定性"
+        case .authorizedWhenInUse: return "把定位权限改为“始终”"
+        default: return "定位被拒绝：仅静音音频"
         }
     }
 }
@@ -170,9 +170,9 @@ private struct CheckRow: View {
 private extension Connection.Step {
     var summary: String {
         switch self {
-        case .idle: "Not connected"
+        case .idle: "未连接"
         case .working(let message): message
-        case .ready: VPNMode.current == .localDevVPN ? "Connected through LocalDevVPN" : "Connected to this iPhone"
+        case .ready: VPNMode.current == .localDevVPN ? "已通过 LocalDevVPN 连接" : "已连接这台 iPhone"
         case .failed(let message): message
         }
     }
@@ -195,28 +195,28 @@ private struct LLMSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Picker("Provider", selection: $settings.provider) {
+                Picker("服务商", selection: $settings.provider) {
                     ForEach(LLMProvider.allCases) { Text($0.title).tag($0) }
                 }
                 if settings.provider == .custom {
-                    TextField("Base URL", text: $settings.customURL, prompt: Text(verbatim: "https://…/v1"))
+                    TextField("接口地址", text: $settings.customURL, prompt: Text(verbatim: "https://…/v1"))
                         .keyboardType(.URL)
                 }
-                SecureField("API key", text: $settings.apiKey,
-                            prompt: Text(settings.provider == .custom ? "API key (optional)" : "API key"))
+                SecureField("API 密钥", text: $settings.apiKey,
+                            prompt: Text(settings.provider == .custom ? "API 密钥（可选）" : "API 密钥"))
                 ModelPicker(settings: settings)
             } footer: {
                 if settings.provider == .openRouter {
-                    Link("Get an OpenRouter key", destination: Links.openRouterKeys)
+                    Link("获取 OpenRouter API 密钥", destination: Links.openRouterKeys)
                 } else {
-                    Text("Any OpenAI-compatible endpoint with vision and tool calls. Voice input won't work: it needs OpenRouter.")
+                    Text("任意兼容 OpenAI 的接口，需支持图像识别和工具调用。语音输入仅在 OpenRouter 下可用。")
                 }
             }
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
 
             Section {
-                Button(settings.provider == .openRouter ? "Test OpenRouter Connection" : "Test Connection") {
+                Button(settings.provider == .openRouter ? "测试 OpenRouter 连接" : "测试连接") {
                     isTesting = true
                     testMessage = nil
                     Task {
@@ -234,7 +234,7 @@ private struct LLMSettingsView: View {
                 }
             }
         }
-        .navigationTitle("Model API Key")
+        .navigationTitle("模型 API 密钥")
         .scrollDismissesKeyboard(.interactively)
     }
 }
@@ -250,25 +250,25 @@ private struct ConnectionSettingsView: View {
     var body: some View {
         Form {
             Section {
-                CheckRow("Status", detail: connection.step.summary, state: connection.step.checkState)
+                CheckRow("状态", detail: connection.step.summary, state: connection.step.checkState)
                 Picker("VPN", selection: $vpnMode) {
-                    Text("Built-in").tag(VPNMode.builtIn)
+                    Text("内置").tag(VPNMode.builtIn)
                     Text("LocalDevVPN").tag(VPNMode.localDevVPN)
                 }
-                Button("Reconnect") { Task { await connection.connect(force: true) } }
+                Button("重新连接") { Task { await connection.connect(force: true) } }
                     .disabled(connection.step.checkState == .working || !connection.hasPairingFile)
             } footer: {
                 if vpnMode == .builtIn {
-                    Text("Starts the built-in VPN, connects to this iPhone's developer services and mounts the developer disk image.")
+                    Text("启动内置 VPN，连接这台 iPhone 的开发者服务并挂载开发者磁盘映像。")
                 } else {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("For builds without the VPN entitlement (free Apple ID). Turn on LocalDevVPN, then Reconnect: it connects to this iPhone's developer services and mounts the developer disk image.")
-                        Link("Get LocalDevVPN", destination: VPNMode.localDevVPNURL)
+                        Text("适用于没有 VPN 权限的构建（免费 Apple ID）。打开 LocalDevVPN，再点重新连接即可连上这台 iPhone 的开发者服务并挂载开发者磁盘映像。")
+                        Link("获取 LocalDevVPN", destination: VPNMode.localDevVPNURL)
                     }
                 }
             }
             Section {
-                Button("Redownload Developer Disk Image") { showDDIConfirmation = true }
+                Button("重新下载开发者磁盘映像") { showDDIConfirmation = true }
                     .disabled(isRedownloadingDDI)
                 if isRedownloadingDDI {
                     ProgressView(value: ddiProgress)
@@ -278,12 +278,12 @@ private struct ConnectionSettingsView: View {
                         .foregroundStyle(ddiMessage.isError ? .red : .secondary)
                 }
             } footer: {
-                Text("Only if mounting keeps failing, e.g. after an iOS update.")
+                Text("仅在反复挂载失败时使用，比如 iOS 升级之后。")
             }
         }
-        .navigationTitle("Phone Connection")
-        .confirmationDialog("Redownload the developer disk image?", isPresented: $showDDIConfirmation, titleVisibility: .visible) {
-            Button("Redownload", role: .destructive) { redownloadDDI() }
+        .navigationTitle("手机连接")
+        .confirmationDialog("重新下载开发者磁盘映像？", isPresented: $showDDIConfirmation, titleVisibility: .visible) {
+            Button("重新下载", role: .destructive) { redownloadDDI() }
         }
     }
 
@@ -295,9 +295,9 @@ private struct ConnectionSettingsView: View {
                 try await DeveloperDiskImageService.shared.redownload { progress, _ in
                     Task { @MainActor in ddiProgress = progress }
                 }
-                ddiMessage = ("Developer disk image downloaded.", false)
+                ddiMessage = ("开发者磁盘映像已下载。", false)
             } catch {
-                ddiMessage = ("Download failed: \(error.localizedDescription)", true)
+                ddiMessage = ("下载失败：\(error.localizedDescription)", true)
             }
             isRedownloadingDDI = false
         }
@@ -312,24 +312,24 @@ private struct BackgroundSettingsView: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("Location access", value: authorizationText)
+                LabeledContent("定位权限", value: authorizationText)
                 if location.authorization == .notDetermined {
-                    Button("Allow Location Access") { location.requestAuthorizationIfNeeded() }
+                    Button("允许定位") { location.requestAuthorizationIfNeeded() }
                 } else if location.authorization != .authorizedAlways {
-                    Button("Open iOS Settings") {
+                    Button("打开 iOS 设置") {
                         if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                     }
                 }
             } footer: {
-                Text("Background location only keeps the agent alive with \"Always\" access.")
+                Text("后台定位只在权限为“始终”时才能让智能体保持运行。")
             }
             Section {
-                Toggle("Silent Audio", isOn: $keepAliveAudio)
+                Toggle("静音音频", isOn: $keepAliveAudio)
                     .onChange(of: keepAliveAudio) { _, enabled in
                         if !enabled, !keepAliveLocation { keepAliveLocation = true }
                         keepAliveDidChange()
                     }
-                Toggle("Background Location", isOn: $keepAliveLocation)
+                Toggle("后台定位", isOn: $keepAliveLocation)
                     .onChange(of: keepAliveLocation) { _, enabled in
                         if enabled {
                             location.requestAuthorizationIfNeeded()
@@ -339,18 +339,18 @@ private struct BackgroundSettingsView: View {
                         keepAliveDidChange()
                     }
             } footer: {
-                Text("Keeps the agent running while it uses other apps. At least one stays on.")
+                Text("让智能体在使用其他 App 时保持运行。至少需要开启一项。")
             }
         }
-        .navigationTitle("Run in Background")
+        .navigationTitle("后台运行")
     }
 
     private var authorizationText: String {
         switch location.authorization {
-        case .authorizedAlways: "Always"
-        case .authorizedWhenInUse: "While Using"
-        case .notDetermined: "Not asked"
-        default: "Refused"
+        case .authorizedAlways: "始终"
+        case .authorizedWhenInUse: "使用期间"
+        case .notDetermined: "未询问"
+        default: "已拒绝"
         }
     }
 
@@ -367,10 +367,10 @@ private struct SystemPromptEditor: View {
         TextEditor(text: $settings.systemPrompt)
             .font(.callout)
             .padding(.horizontal)
-            .navigationTitle("System Prompt")
+            .navigationTitle("系统提示词")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                Button("Reset") { settings.systemPrompt = LLMSettings.defaultSystemPrompt }
+                Button("恢复默认") { settings.systemPrompt = LLMSettings.defaultSystemPrompt }
                     .disabled(settings.systemPrompt == LLMSettings.defaultSystemPrompt)
             }
     }
@@ -378,15 +378,15 @@ private struct SystemPromptEditor: View {
 
 private struct CreditsView: View {
     private let credits: [(name: String, detail: String, url: String)] = [
-        ("StikDebug", "The tunnel, pairing file and developer disk image code is based on StikDebug by Stephen and contributors.",
+        ("StikDebug", "隧道、配对文件和开发者磁盘映像相关代码基于 Stephen 及贡献者的 StikDebug。",
          "https://github.com/StephenDev0/StikDebug"),
-        ("idevice", "Rust library that talks to the iPhone's developer services.",
+        ("idevice", "用于访问 iPhone 开发者服务的 Rust 库。",
          "https://github.com/jkcoxson/idevice"),
-        ("LocalDevVPN / StosVPN", "The loopback VPN is based on StosVPN by the SideStore Team, via LocalDevVPN.",
+        ("LocalDevVPN / StosVPN", "环回 VPN 基于 SideStore 团队的 StosVPN，经 LocalDevVPN 使用。",
          "https://github.com/jkcoxson/LocalDevVPN"),
-        ("esp32-iphone-agent", "Model provider and model picker design.",
+        ("esp32-iphone-agent", "模型服务商与模型选择器的设计参考。",
          "https://github.com/onehumanbeing/esp32-iphone-agent"),
-        ("DeveloperDiskImage", "Developer disk images downloaded at first launch.",
+        ("DeveloperDiskImage", "首次启动时下载的开发者磁盘映像来源。",
          "https://github.com/doronz88/DeveloperDiskImage"),
     ]
 
@@ -399,6 +399,6 @@ private struct CreditsView: View {
                 }
             }
         }
-        .navigationTitle("Credits")
+        .navigationTitle("鸣谢")
     }
 }

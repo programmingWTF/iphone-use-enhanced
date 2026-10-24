@@ -74,10 +74,10 @@ private struct StatusText: View {
 
     var body: some View {
         if context.state.running {
-            Text("Step \(context.state.step)")
+            Text("第 \(context.state.step) 步")
                 .monospacedDigit()
         } else {
-            Text("Finished")
+            Text("已完成")
         }
     }
 }
@@ -91,7 +91,7 @@ private struct StopButton: View {
                 Image(systemName: "stop.fill")
             }
             .tint(.red)
-            .accessibilityLabel("Stop agent")
+            .accessibilityLabel("停止运行")
         }
     }
 }

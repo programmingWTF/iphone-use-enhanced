@@ -14,8 +14,8 @@ struct ModelPicker: View {
 
     var body: some View {
         Button { showingModels = true } label: {
-            LabeledContent("Model") {
-                Text(settings.model.isEmpty ? "Choose a model" : settings.model)
+            LabeledContent("模型") {
+                Text(settings.model.isEmpty ? "选择模型" : settings.model)
                     .multilineTextAlignment(.trailing)
                     .lineLimit(2)
             }
@@ -44,25 +44,25 @@ struct ModelSelectionView: View {
         NavigationStack {
             List {
                 Section {
-                    TextField("Model ID", text: $customID)
+                    TextField("模型 ID", text: $customID)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .onSubmit(useCustomID)
-                    Button("Use Model ID", action: useCustomID)
+                    Button("使用该模型 ID", action: useCustomID)
                         .disabled(customID.trimmingCharacters(in: .whitespaces).isEmpty)
                 } header: {
-                    Text("Custom model")
+                    Text("自定义模型")
                 } footer: {
-                    Text("The model needs image input and tool calls.")
+                    Text("该模型需要支持图片输入和工具调用。")
                 }
-                Section("Models") {
+                Section("模型") {
                     ForEach(matches, id: \.self) { id in
                         Button { choose(id) } label: {
                             HStack {
                                 Text(id).foregroundStyle(.primary)
                                 Spacer()
                                 if id == settings.model {
-                                    Image(systemName: "checkmark").accessibilityLabel("Selected")
+                                    Image(systemName: "checkmark").accessibilityLabel("已选择")
                                 }
                             }
                             .contentShape(.rect)
@@ -70,19 +70,19 @@ struct ModelSelectionView: View {
                         .buttonStyle(.haptic(.plain))
                     }
                     if settings.loadingModels {
-                        ProgressView("Loading models…")
+                        ProgressView("正在加载模型…")
                     } else if let error = settings.modelsError {
                         Text(error).font(.footnote).foregroundStyle(.secondary)
                     }
                 }
             }
-            .searchable(text: $search, prompt: "Search models")
-            .navigationTitle("Choose Model")
+            .searchable(text: $search, prompt: "搜索模型")
+            .navigationTitle("选择模型")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Refresh", systemImage: "arrow.clockwise") { Task { await settings.loadModels() } }
+                    Button("刷新", systemImage: "arrow.clockwise") { Task { await settings.loadModels() } }
                         .disabled(settings.loadingModels)
                 }
             }

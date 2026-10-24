@@ -107,7 +107,7 @@ final class DeveloperDiskImageService {
         let totalStages = Double(Self.downloadItems.count + 1)
         var completedStages = 0.0
 
-        progressHandler?(0.0, "Removing existing DDI files...")
+        progressHandler?(0.0, "正在删除已有的 DDI 文件…")
         if fileManager.fileExists(atPath: Self.mountMethodURL.path) {
             try fileManager.removeItem(at: Self.mountMethodURL)
         }
@@ -126,19 +126,19 @@ final class DeveloperDiskImageService {
         }
 
         completedStages += 1.0
-        progressHandler?(completedStages / totalStages, "Starting downloads...")
+        progressHandler?(completedStages / totalStages, "开始下载…")
 
         for item in Self.downloadItems {
-            progressHandler?(completedStages / totalStages, "Downloading \(item.name)...")
+            progressHandler?(completedStages / totalStages, "正在下载 \(item.name)…")
             let destinationURL = Self.directoryURL.appendingPathComponent(item.fileName)
             try await downloadFile(from: item.urlStrings, to: destinationURL)
             completedStages += 1.0
-            progressHandler?(completedStages / totalStages, "\(item.name) ready")
+            progressHandler?(completedStages / totalStages, "\(item.name) 已就绪")
         }
 
         try Self.mountMethod.rawValue.write(to: Self.mountMethodURL, atomically: true, encoding: .utf8)
 
-        progressHandler?(1.0, "DDI download complete.")
+        progressHandler?(1.0, "DDI 下载完成")
     }
 
     private func removeCryptexOnlyFiles() throws {
@@ -183,27 +183,27 @@ final class DeveloperDiskImageService {
 
     private static let cryptexDownloadItems: [DDIDownloadItem] = [
         .init(
-            name: "Build Manifest",
+            name: "构建清单",
             fileName: "BuildManifest.plist",
             urlStrings: candidates("Xcode_iOS_DDI_Cryptex/BuildManifest.plist")
         ),
         .init(
-            name: "Image",
+            name: "映像",
             fileName: "Image.dmg",
             urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg")
         ),
         .init(
-            name: "TrustCache",
+            name: "信任缓存",
             fileName: "Image.dmg.trustcache",
             urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg.trustcache")
         ),
         .init(
-            name: "Cryptex Info",
+            name: "Cryptex 信息",
             fileName: "Image.dmg.cryptex_info",
             urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg.cryptex_info")
         ),
         .init(
-            name: "Root Hash",
+            name: "根哈希",
             fileName: "Image.dmg.root_hash",
             urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg.root_hash")
         )
@@ -211,17 +211,17 @@ final class DeveloperDiskImageService {
 
     private static let personalizedDownloadItems: [DDIDownloadItem] = [
         .init(
-            name: "Build Manifest",
+            name: "构建清单",
             fileName: "BuildManifest.plist",
             urlStrings: candidates("Xcode_iOS_DDI_Personalized/BuildManifest.plist")
         ),
         .init(
-            name: "Image",
+            name: "映像",
             fileName: "Image.dmg",
             urlStrings: candidates("Xcode_iOS_DDI_Personalized/Image.dmg")
         ),
         .init(
-            name: "TrustCache",
+            name: "信任缓存",
             fileName: "Image.dmg.trustcache",
             urlStrings: candidates("Xcode_iOS_DDI_Personalized/Image.dmg.trustcache")
         )
@@ -248,11 +248,11 @@ enum DDIDownloadError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL(let string):
-            return "Invalid download URL: \(string)"
+            return "下载地址无效：\(string)"
         case .invalidResponse:
-            return "The DDI server returned an invalid response."
+            return "DDI 服务器返回了无效的响应。"
         case .badStatus(let statusCode):
-            return "The DDI server returned HTTP \(statusCode)."
+            return "DDI 服务器返回了 HTTP \(statusCode)。"
         }
     }
 }

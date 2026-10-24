@@ -39,8 +39,8 @@ struct AgentShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: RunAgentIntent(),
             phrases: [
-                "Run \(.applicationName) agent",
-                "Ask \(.applicationName)",
+                "运行 \(.applicationName) Agent",
+                "问问 \(.applicationName)",
             ],
             shortTitle: "Run Agent",
             systemImageName: "sparkles"

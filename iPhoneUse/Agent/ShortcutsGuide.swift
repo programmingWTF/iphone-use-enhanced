@@ -28,31 +28,31 @@ struct ShortcutsGuideView: View {
     var body: some View {
         Form {
             Section {
-                Step(1, "Open the Shortcuts app and tap + to make a new shortcut.")
-                Step(2, "Add the \u{201C}Run Agent\u{201D} action from iPhone Use.")
-                Step(3, "Type the prompt, or leave it empty to be asked each time.")
-                Step(4, "Run it from Siri, the Action button, Back Tap, a widget or an automation.")
+                Step(1, "打开「快捷指令」App，点右上角 + 新建一个快捷指令。")
+                Step(2, "从 iPhone Use 添加「运行 Agent」操作。")
+                Step(3, "填写提示词；留空则每次运行时询问。")
+                Step(4, "可以从 Siri、操作按钮、轻点背面、小组件或自动化运行。")
                 Link(destination: URL(string: "shortcuts://")!) {
-                    Label("Open Shortcuts", systemImage: "arrow.up.forward.app")
+                    Label("打开快捷指令", systemImage: "arrow.up.forward.app")
                 }
             } header: {
-                Text("Shortcut")
+                Text("快捷指令")
             } footer: {
-                Text("Without any setup, you can also say \u{201C}Ask iPhone Use\u{201D} to Siri.")
+                Text("不做任何设置，也可以直接对 Siri 说「询问 iPhone Use」。")
             }
 
             Section {
                 Text(DeepLink.example)
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
-                Button("Copy Example", systemImage: "doc.on.doc") { UIPasteboard.general.string = DeepLink.example }
+                Button("复制示例", systemImage: "doc.on.doc") { UIPasteboard.general.string = DeepLink.example }
             } header: {
-                Text("Deep link")
+                Text("深链")
             } footer: {
-                Text("Opening this link starts a new session with the prompt. URL-encode the prompt; in Shortcuts, use the \u{201C}Open URLs\u{201D} action.")
+                Text("打开该链接会带上提示词开始一个新会话。提示词需要 URL 编码；在快捷指令里使用「打开 URL」操作。")
             }
         }
-        .navigationTitle("Shortcuts & Deep Link")
+        .navigationTitle("快捷指令与深链")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

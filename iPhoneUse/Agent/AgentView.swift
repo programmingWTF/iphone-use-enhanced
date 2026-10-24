@@ -66,7 +66,7 @@ struct AgentView: View {
         .sheet(isPresented: $showSettings) { SettingsView() }
         .sheet(isPresented: $showShortcutsGuide) {
             NavigationStack {
-                ShortcutsGuideView().toolbar { Button("Done") { showShortcutsGuide = false } }
+                ShortcutsGuideView().toolbar { Button("完成") { showShortcutsGuide = false } }
             }
         }
         // iphoneuse://run?prompt=... starts a new session, like the Run Agent intent.
@@ -146,7 +146,7 @@ struct AgentView: View {
                     }
                     if agent.isRunning {
                         Button { agent.stop() } label: {
-                            Label("Stop Session", systemImage: "stop.fill")
+                            Label("停止会话", systemImage: "stop.fill")
                                 .font(.title3.bold())
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
@@ -162,24 +162,24 @@ struct AgentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Chats", systemImage: "line.3.horizontal") { setMenu(true) }
+                    Button("会话列表", systemImage: "line.3.horizontal") { setMenu(true) }
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("New Chat", systemImage: "square.and.pencil") { select(nil) }
+                    Button("新会话", systemImage: "square.and.pencil") { select(nil) }
                         .disabled(openRun == nil && (agent.entries.isEmpty || agent.isRunning))
                     Button { showSettings = true } label: {
                         Image(systemName: "gearshape").overlay(alignment: .topTrailing) { if needsSetup { BadgeDot() } }
                     }
-                    .accessibilityLabel(needsSetup ? "Settings, setup needed" : "Settings")
+                    .accessibilityLabel(needsSetup ? "设置，需先完成配置" : "设置")
                 }
             }
         }
     }
 
     private static let suggestions = [
-        ("message.fill", Color.green, "List my unread WhatsApp conversations (don't open them)"),
-        ("car.fill", Color.primary, "Get me an Uber to the closest supermarket"),
-        ("creditcard.fill", Color.blue, "Show me my Apple subscriptions, recommend which ones to cancel"),
+        ("message.fill", Color.green, "列出我未读的 WhatsApp 会话（不要打开它们）"),
+        ("car.fill", Color.primary, "帮我叫一辆 Uber 去最近的超市"),
+        ("creditcard.fill", Color.blue, "看看我的 Apple 订阅，推荐取消哪些"),
     ]
 
     /// Starter prompts on a new chat, sitting just above the composer.
@@ -241,7 +241,7 @@ struct AgentView: View {
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 8) {
             if voice.state == .idle {
-                TextField(agent.question == nil ? "Ask anything" : "Answer", text: $prompt, axis: .vertical)
+                TextField(agent.question == nil ? "问点什么" : "回答", text: $prompt, axis: .vertical)
                     .lineLimit(1...6)
                     .focused($composerFocused)
                     .frame(minHeight: 34)
@@ -260,7 +260,7 @@ struct AgentView: View {
                     .background(Circle().fill(canSend ? Color.primary : Color.secondary.opacity(0.4)))
             }
             .disabled(!canSend)
-            .accessibilityLabel(agent.question == nil ? "Send" : "Send answer")
+            .accessibilityLabel(agent.question == nil ? "发送" : "发送回答")
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 10)
@@ -328,7 +328,7 @@ private struct MicButton: View {
                     let held = Date.now.timeIntervalSince(start) > 0.4
                     if voice.state == .recording, !startedByPress || held { stop() }
                 })
-            .accessibilityLabel(voice.state == .recording ? "Stop recording" : "Record voice prompt")
+            .accessibilityLabel(voice.state == .recording ? "停止录音" : "语音输入")
             .accessibilityAddTraits(.isButton)
             .accessibilityAction {
                 if voice.state == .recording { stop() } else if enabled { Task { await voice.start() } }
@@ -373,7 +373,7 @@ private struct ChatList: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("History")
+            Text("历史记录")
                 .font(.largeTitle.bold())
                 .padding(.horizontal, 20)
             ScrollView {
@@ -393,8 +393,8 @@ private struct ChatList: View {
                         }
                         .buttonStyle(.haptic(.plain))
                         .contextMenu {
-                            Button("Use Prompt", systemImage: "arrow.uturn.left") { reuse(run.prompt) }
-                            Button("Delete", systemImage: "trash", role: .destructive) {
+                            Button("使用该提示词", systemImage: "arrow.uturn.left") { reuse(run.prompt) }
+                            Button("删除", systemImage: "trash", role: .destructive) {
                                 if openRun == run.id { select(nil) }
                                 agent.deleteRun(run.id)
                             }
@@ -404,11 +404,11 @@ private struct ChatList: View {
                 .padding(.horizontal, 8)
             }
             .overlay {
-                if agent.history.isEmpty { Text("No sessions yet").foregroundStyle(.secondary) }
+                if agent.history.isEmpty { Text("还没有会话").foregroundStyle(.secondary) }
             }
             Button(action: openShortcutsGuide) {
                 HStack {
-                    Label("Connect shortcuts, deeplink", systemImage: "link")
+                    Label("接入快捷指令与深链", systemImage: "link")
                     Spacer()
                     Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                 }
@@ -420,7 +420,7 @@ private struct ChatList: View {
             .padding(.horizontal, 8)
             HStack {
                 Button { select(nil) } label: {
-                    Label("Chat", systemImage: "square.and.pencil")
+                    Label("对话", systemImage: "square.and.pencil")
                         .font(.headline)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 22)
@@ -437,7 +437,7 @@ private struct ChatList: View {
                         .overlay(alignment: .topTrailing) { if needsSetup { BadgeDot().padding(6) } }
                 }
                 .buttonStyle(.haptic(.plain))
-                .accessibilityLabel(needsSetup ? "Settings, setup needed" : "Settings")
+                .accessibilityLabel(needsSetup ? "设置，需先完成配置" : "设置")
             }
             .padding(.horizontal, 20)
         }
@@ -494,7 +494,7 @@ private struct StepCarousel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Steps").font(.headline)
+            Text("步骤").font(.headline)
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     // ponytail: non-lazy so cards keep their fade state; fine for maxSteps-sized runs.
@@ -557,7 +557,7 @@ private struct ShotViewer: View {
                         .glass(in: Circle())
                 }
                 .buttonStyle(.haptic(.plain))
-                .accessibilityLabel("Close")
+                .accessibilityLabel("关闭")
             }
             .padding(.horizontal, 20)
 
@@ -682,26 +682,26 @@ private struct CellularHelpView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("iOS blocks connecting to this iPhone over cellular data. Join a Wi-Fi network, or turn cellular data off while connecting: once connected, it can go back on.")
+                    Text("iOS 不允许通过蜂窝数据连接这台 iPhone。请接入 Wi-Fi，或在连接时先关闭蜂窝数据：连上之后可以再打开。")
                 }
-                Section("Option 1") {
-                    Text("Turn off Cellular Data in Control Center, then:")
-                    Button("Connect") { connect() }
+                Section("方式一") {
+                    Text("在控制中心关闭蜂窝数据，然后：")
+                    Button("连接") { connect() }
                 }
                 Section {
                     Link(destination: CellularShortcut.installURL) {
-                        Label("Install Cellular Toggle Shortcut", systemImage: "square.and.arrow.down")
+                        Label("安装蜂窝数据开关快捷指令", systemImage: "square.and.arrow.down")
                     }
-                    Button("Connect") { connect() }
+                    Button("连接") { connect() }
                 } header: {
-                    Text("Option 2")
+                    Text("方式二")
                 } footer: {
-                    Text("Add the shortcut once. The app then turns cellular data off and back on by itself while connecting.")
+                    Text("这个快捷指令只需添加一次。之后连接时 App 会自行关闭再打开蜂窝数据。")
                 }
             }
-            .navigationTitle("On Cellular")
+            .navigationTitle("使用蜂窝数据时")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { Button("Close") { dismiss() } }
+            .toolbar { Button("关闭") { dismiss() } }
         }
         .presentationDetents([.medium, .large])
     }
@@ -717,13 +717,13 @@ private struct ConnectionStatus: View {
             switch connection.step {
             case .idle:
                 Image(systemName: "circle").foregroundStyle(.secondary)
-                Text("Not connected").foregroundStyle(.secondary)
+                Text("未连接").foregroundStyle(.secondary)
             case .working(let message):
                 ProgressView().controlSize(.mini)
                 Text(message).foregroundStyle(.secondary)
             case .ready:
                 Image(systemName: "circle.fill").foregroundStyle(.green)
-                Text("Connected to this iPhone")
+                Text("已连接这台 iPhone")
             case .failed(let message):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 Text(message).foregroundStyle(.secondary)
@@ -732,11 +732,11 @@ private struct ConnectionStatus: View {
             if showsConnect {
                 // Without a pairing file, connecting fails instantly with the same message: send to Settings instead.
                 if connection.hasPairingFile {
-                    Button("Connect") { connect() }
+                    Button("连接") { connect() }
                         .buttonStyle(.haptic(.bordered))
                         .controlSize(.small)
                 } else {
-                    Button("Set Up", action: openSettings)
+                    Button("去设置", action: openSettings)
                         .buttonStyle(.haptic(.bordered))
                         .controlSize(.small)
                 }

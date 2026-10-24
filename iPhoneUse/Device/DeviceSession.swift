@@ -14,7 +14,7 @@ import Darwin
 final class RemotePairingPortResolver: NSObject, NetServiceBrowserDelegate, NetServiceDelegate {
     static let fallback: UInt16 = 49152
     private static let stateLock = NSLock()
-    private static var selectedEndpoint = "Not attempted yet"
+    private static var selectedEndpoint = "尚未尝试"
 
     /// The port and discovery method used for the latest connection attempt.
     static var lastAttemptDescription: String {
@@ -37,7 +37,7 @@ final class RemotePairingPortResolver: NSObject, NetServiceBrowserDelegate, NetS
         let found = completion.wait(timeout: .now() + timeout + 1) == .success ? worker.resolvedPort : nil
         let port = found ?? fallback
         stateLock.lock()
-        selectedEndpoint = "\(DeviceSession.peerIP):\(port) (\(found == nil ? "fallback" : "Bonjour"))"
+        selectedEndpoint = "\(DeviceSession.peerIP):\(port) (\(found == nil ? "回退" : "Bonjour"))"
         stateLock.unlock()
         return port
     }
@@ -126,16 +126,16 @@ final class DeviceSession {
     private func readPairingFile() throws -> OpaquePointer {
         let pairingFileURL = PairingFileStore.prepareURL()
         guard FileManager.default.fileExists(atPath: pairingFileURL.path) else {
-            throw makeError("Pairing file not found!", code: -17)
+            throw makeError("未找到配对文件。", code: -17)
         }
 
         var pairingFile: OpaquePointer?
         let ffiError = pairingFileURL.path.withCString { rp_pairing_file_read($0, &pairingFile) }
         if let ffiError {
-            throw error(from: ffiError, fallback: "Failed to read pairing file!")
+            throw error(from: ffiError, fallback: "读取配对文件失败")
         }
         guard let pairingFile else {
-            throw makeError("Failed to read pairing file!", code: -17)
+            throw makeError("读取配对文件失败。", code: -17)
         }
         return pairingFile
     }
@@ -220,11 +220,11 @@ final class DeviceSession {
         if let ffiError {
             let detail = ffiError.pointee.message.flatMap { String(validatingUTF8: $0) } ?? "no message"
             Self.appendLog("tunnel: failed code=\(ffiError.pointee.code) sub=\(ffiError.pointee.sub_code) msg=\(detail)")
-            throw error(from: ffiError, fallback: "Failed to create tunnel [tcp: \(probe)]")
+            throw error(from: ffiError, fallback: "创建隧道失败 [tcp: \(probe)]")
         }
         guard tunnel.adapter != nil, tunnel.handshake != nil else {
             tunnel.free()
-            throw makeError("Tunnel was created without valid handles")
+            throw makeError("隧道创建失败：句柄无效。")
         }
         return tunnel
     }
@@ -237,7 +237,7 @@ final class DeviceSession {
 
             if let waitSemaphore {
                 guard waitSemaphore.wait(timeout: .now() + .seconds(15)) == .success else {
-                    throw makeError("Timed out waiting for the tunnel connection", code: -19)
+                    throw makeError("等待隧道连接超时", code: -19)
                 }
                 waitSemaphore.signal()
             }
@@ -343,7 +343,7 @@ private final class Heartbeat {
             tunnel = try session.createTunnel(hostname: "iPhoneUseHeartbeat")
             if let ffiError = heartbeat_connect_rsd(tunnel.adapter, tunnel.handshake, &client) {
                 tunnel.free()
-                throw session.error(from: ffiError, fallback: "Failed to connect heartbeat")
+                throw session.error(from: ffiError, fallback: "心跳连接失败")
             }
         } catch let error as NSError {
             startupError = error
@@ -368,7 +368,7 @@ private final class Heartbeat {
             if let ffiError {
                 // idevice's HeartbeatError is code 100; sub_code 1 = SleepyTime, 2 = Timeout.
                 let (code, subCode) = (ffiError.pointee.code, ffiError.pointee.sub_code)
-                let description = session.error(from: ffiError, fallback: "Heartbeat failed").localizedDescription
+                let description = session.error(from: ffiError, fallback: "心跳失败").localizedDescription
                 if code == 100, subCode == 2 {
                     interval = Self.defaultInterval
                     continue
@@ -381,7 +381,7 @@ private final class Heartbeat {
 
             interval = min(max(suggestedInterval, 1), Self.maxInterval)
             if let ffiError = heartbeat_send_polo(client) {
-                let description = session.error(from: ffiError, fallback: "Failed to reply to heartbeat").localizedDescription
+                let description = session.error(from: ffiError, fallback: "心跳回应失败").localizedDescription
                 appLog.error("Heartbeat warning: \(description, privacy: .public)")
                 interval = Self.defaultInterval
             }

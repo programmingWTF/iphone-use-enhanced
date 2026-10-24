@@ -12,7 +12,7 @@ import Security
 enum LLMProvider: String, CaseIterable, Identifiable {
     case openRouter, custom
     var id: String { rawValue }
-    var title: String { self == .openRouter ? "OpenRouter" : "Custom URL" }
+    var title: String { self == .openRouter ? "OpenRouter" : "自定义地址" }
 }
 
 /// What one agent run needs, read once on the main actor.
@@ -114,9 +114,9 @@ final class LLMSettings: ObservableObject {
 
     /// nil when the agent can run; otherwise what to fix in Settings.
     var problem: String? {
-        if URL(string: baseURL)?.host == nil { return "Set a base URL in Settings." }
-        if provider == .openRouter && apiKey.isEmpty { return "Add an OpenRouter API key in Settings." }
-        if model.trimmingCharacters(in: .whitespaces).isEmpty { return "Pick a model in Settings." }
+        if URL(string: baseURL)?.host == nil { return "请在设置里填写接口地址。" }
+        if provider == .openRouter && apiKey.isEmpty { return "请在设置里添加 OpenRouter API 密钥。" }
+        if model.trimmingCharacters(in: .whitespaces).isEmpty { return "请在设置里选择模型。" }
         return nil
     }
 
@@ -132,24 +132,24 @@ final class LLMSettings: ObservableObject {
     /// Checks the key against the endpoint. OpenRouter's /key rejects bad keys; /models is public there.
     func testConnection() async -> (text: String, isError: Bool) {
         let path = provider == .openRouter ? "/key" : "/models"
-        guard let url = URL(string: baseURL + path), url.host != nil else { return ("Set a base URL first.", true) }
+        guard let url = URL(string: baseURL + path), url.host != nil else { return ("请先填写接口地址。", true) }
         var request = URLRequest(url: url)
         if !apiKey.isEmpty { request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization") }
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            guard (200..<300).contains(status) else { return ("Failed: HTTP \(status).", true) }
+            guard (200..<300).contains(status) else { return ("失败：HTTP \(status)。", true) }
             // OpenRouter's /key: limit_remaining is null when the key has no spending limit.
             let key = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["data"] as? [String: Any]
             if let remaining = key?["limit_remaining"] as? Double {
-                return (String(format: "Connected. $%.2f left on this key.", remaining), false)
+                return (String(format: "已连接。该 Key 剩余 $%.2f。", remaining), false)
             }
             if let usage = key?["usage"] as? Double {
-                return (String(format: "Connected. $%.2f used, no limit on this key.", usage), false)
+                return (String(format: "已连接。已用 $%.2f，该 Key 无额度上限。", usage), false)
             }
-            return ("Connected.", false)
+            return ("已连接。", false)
         } catch {
-            return ("Failed: \(error.localizedDescription)", true)
+            return ("失败：\(error.localizedDescription)", true)
         }
     }
 
@@ -163,7 +163,7 @@ final class LLMSettings: ObservableObject {
             let (data, _) = try await URLSession.shared.data(for: request)
             let list = (try JSONSerialization.jsonObject(with: data) as? [String: Any])?["data"] as? [[String: Any]] ?? []
             models = list.compactMap { $0["id"] as? String }.sorted()
-            modelsError = models.isEmpty ? "The endpoint lists no models. Enter a model ID instead." : nil
+            modelsError = models.isEmpty ? "该接口没有列出任何模型，请直接填入模型 ID。" : nil
         } catch {
             models = []
             modelsError = error.localizedDescription

@@ -110,11 +110,11 @@ final class BackgroundLocationManager: NSObject, ObservableObject, CLLocationMan
         BackgroundAudioManager.shared.configurationDidChange()
 
         showAlert(
-            title: "Location Access Refused",
-            message: "Location access was refused. Open Settings to enable it.",
+            title: "定位权限被拒绝",
+            message: "请在设置里把定位权限设为“始终”，或改用静音音频保活。",
             showOk: false,
             showTryAgain: true,
-            primaryButtonText: "Settings"
+            primaryButtonText: "设置"
         ) { openSettings in
             guard openSettings,
                   let settingsURL = URL(string: UIApplication.openSettingsURLString) else {
