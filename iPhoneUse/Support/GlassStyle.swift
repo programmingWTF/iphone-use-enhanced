@@ -30,30 +30,51 @@ enum GlassMetrics {
     static let circle: CGFloat = 44
 }
 
+/// How much glass an untinted surface carries. Coloured surfaces ignore this: their
+/// tint is the message, so they always keep the full material.
+///
+/// Two weights, both real: the chat keeps the film you can see the page through, while
+/// the settings pages drop it to a rim so the rows stay the subject.
+enum GlassWeight {
+    /// The chat screen: `Glass.clear` on iOS 26, a 55% material before it.
+    case standard
+    /// The settings pages: a 1pt rim on iOS 26, a 3% wash and a 30% material before it.
+    case light
+}
+
 extension View {
     /// A rounded Liquid Glass surface behind the view.
     ///
     /// Tinted surfaces keep the real thing (`Glass.regular.tint(…)`, or the tint plus a
     /// full material before iOS 26), because the colour is the message there.
     ///
-    /// Plain surfaces are meant to be almost nothing: `Glass.clear` is the clearest glass
-    /// iOS 26 ships, and it still reads as a film, so plain surfaces skip `glassEffect`
-    /// entirely and keep only a 1pt rim. Before iOS 26 the rim is joined by a 3% white
-    /// wash and a 30% material, which is enough to see the view behind through the card.
-    func glassSurface(_ tint: Color? = nil, cornerRadius: CGFloat = 22, interactive: Bool = false) -> some View {
+    /// Plain surfaces come in two weights. `.standard` is `Glass.clear` on iOS 26 and a
+    /// 55% material before it: a film you can see the page through. `.light` drops the
+    /// film on iOS 26 and keeps only a 1pt rim, joined before iOS 26 by a 3% white wash
+    /// and a 30% material.
+    func glassSurface(_ tint: Color? = nil,
+                      weight: GlassWeight = .standard,
+                      cornerRadius: CGFloat = 22,
+                      interactive: Bool = false) -> some View {
         glassSurface(tint,
                      in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
+                     weight: weight,
                      interactive: interactive)
     }
 
     /// The same surface clipped to a shape — `Capsule()` for a one-line row.
-    func glassSurface<S: InsettableShape>(_ tint: Color? = nil, in shape: S, interactive: Bool = false) -> some View {
-        modifier(GlassSurface(tint: tint, shape: shape, interactive: interactive))
+    func glassSurface<S: InsettableShape>(_ tint: Color? = nil,
+                                          in shape: S,
+                                          weight: GlassWeight = .standard,
+                                          interactive: Bool = false) -> some View {
+        modifier(GlassSurface(tint: tint, shape: shape, weight: weight, interactive: interactive))
     }
 
     /// Capsule glass for pills, chips and floating round buttons.
-    func glassPill(_ tint: Color? = nil, interactive: Bool = false) -> some View {
-        glassSurface(tint, in: Capsule(), interactive: interactive)
+    func glassPill(_ tint: Color? = nil,
+                   weight: GlassWeight = .standard,
+                   interactive: Bool = false) -> some View {
+        glassSurface(tint, in: Capsule(), weight: weight, interactive: interactive)
     }
 
     /// A perfect circle: a fixed square hit area around a circle-shaped surface.
@@ -61,12 +82,23 @@ extension View {
     /// Every single-icon glass control goes through this, so the circles all have the
     /// same diameter and none of them turn into a rounded square on iOS 26, where a
     /// toolbar item would otherwise be shaped by the system's own button border.
+    ///
+    /// A coloured circle also gets a base coat of its own colour, painted twice, before
+    /// the glass goes on. Without it the navigation bar's material shows through the
+    /// semi-transparent tint and the button reads as plain glass under coloured glass;
+    /// the second coat is what makes the colour sit on its own.
     func glassCircle(_ tint: Color? = nil,
                      size: CGFloat = GlassMetrics.circle,
+                     weight: GlassWeight = .standard,
                      interactive: Bool = true) -> some View {
         frame(width: size, height: size)
             .contentShape(Circle())
-            .glassSurface(tint, in: Circle(), interactive: interactive)
+            .background {
+                if let tint = tint {
+                    Circle().fill(tint).overlay(Circle().fill(tint))
+                }
+            }
+            .glassSurface(tint, in: Circle(), weight: weight, interactive: interactive)
     }
 
     /// One coloured glass rim, and nothing at all when `tint` is nil.
@@ -120,34 +152,48 @@ extension View {
 private struct GlassSurface<S: InsettableShape>: ViewModifier {
     let tint: Color?
     let shape: S
+    let weight: GlassWeight
     let interactive: Bool
+
+    private var isLight: Bool {
+        if case .light = weight { return true }
+        return false
+    }
 
     @ViewBuilder
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
             if let tint = tint {
                 content.glassEffect(LiquidGlass.tinted(tint, interactive: interactive), in: shape)
-            } else {
-                // 普通玻璃再透一档：Glass.clear 已是 iOS 26 最透的一档，索性不铺玻璃，
+            } else if isLight {
+                // 轻档：Glass.clear 已是 iOS 26 最透的一档，设置页索性不铺玻璃，
                 // 只留一圈 1pt 描边，背后的内容整块透出来，靠边框和文字辨认。
                 content.overlay(shape.strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+            } else {
+                content.glassEffect(LiquidGlass.plain(interactive: interactive), in: shape)
             }
         } else {
-            // 回退：几乎不放底色，材质压到 0.3，靠更明显的 1pt 边框认形状。
+            // 回退：普通档是淡淡的底色 + 55% 材质；轻档几乎不放底色，材质压到 0.3。
             content
-                .background(tint ?? Color.white.opacity(0.03), in: shape)
-                .background { shape.fill(.ultraThinMaterial).opacity(tint == nil ? 0.30 : 1) }
-                .overlay(shape.strokeBorder(Color.primary.opacity(tint == nil ? 0.20 : 0.10), lineWidth: 1))
+                .background(tint ?? Color.white.opacity(isLight ? 0.03 : 0.04), in: shape)
+                .background { shape.fill(.ultraThinMaterial).opacity(tint == nil ? (isLight ? 0.30 : 0.55) : 1) }
+                .overlay(shape.strokeBorder(Color.primary.opacity(tint == nil ? (isLight ? 0.20 : 0.18) : 0.10), lineWidth: 1))
         }
     }
 }
 
-/// Builds the tinted `Glass` value in one place: `Glass.tint` takes a non-optional color,
-/// so the tint has to be applied conditionally.
+/// Builds the `Glass` values in one place: `Glass.tint` takes a non-optional color, so
+/// the tint has to be applied conditionally.
 @available(iOS 26, *)
 private enum LiquidGlass {
     static func tinted(_ tint: Color, interactive: Bool) -> Glass {
         var glass: Glass = .regular.tint(tint)
+        if interactive { glass = glass.interactive() }
+        return glass
+    }
+
+    static func plain(interactive: Bool) -> Glass {
+        var glass: Glass = .clear
         if interactive { glass = glass.interactive() }
         return glass
     }
@@ -156,13 +202,15 @@ private enum LiquidGlass {
 /// A card of content on a glass surface.
 struct GlassCard<Content: View>: View {
     private let tint: Color?
+    private let weight: GlassWeight
     private let cornerRadius: CGFloat
     private let padding: CGFloat
     private let content: Content
 
-    init(tint: Color? = nil, cornerRadius: CGFloat = 22, padding: CGFloat = 16,
-         @ViewBuilder content: () -> Content) {
+    init(tint: Color? = nil, weight: GlassWeight = .standard, cornerRadius: CGFloat = 22,
+         padding: CGFloat = 16, @ViewBuilder content: () -> Content) {
         self.tint = tint
+        self.weight = weight
         self.cornerRadius = cornerRadius
         self.padding = padding
         self.content = content()
@@ -174,7 +222,7 @@ struct GlassCard<Content: View>: View {
         }
         .padding(padding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassSurface(tint, cornerRadius: cornerRadius)
+        .glassSurface(tint, weight: weight, cornerRadius: cornerRadius)
     }
 }
 
@@ -182,14 +230,16 @@ struct GlassCard<Content: View>: View {
 struct GlassSection<Content: View, Footer: View>: View {
     private let title: String?
     private let tint: Color?
+    private let weight: GlassWeight
     private let content: Content
     private let footer: Footer
 
-    init(_ title: String? = nil, tint: Color? = nil,
+    init(_ title: String? = nil, tint: Color? = nil, weight: GlassWeight = .standard,
          @ViewBuilder content: () -> Content,
          @ViewBuilder footer: () -> Footer) {
         self.title = title
         self.tint = tint
+        self.weight = weight
         self.content = content()
         self.footer = footer()
     }
@@ -202,7 +252,7 @@ struct GlassSection<Content: View, Footer: View>: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 4)
             }
-            GlassCard(tint: tint, padding: 0) { content }
+            GlassCard(tint: tint, weight: weight, padding: 0) { content }
             footer
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -212,8 +262,9 @@ struct GlassSection<Content: View, Footer: View>: View {
 }
 
 extension GlassSection where Footer == EmptyView {
-    init(_ title: String? = nil, tint: Color? = nil, @ViewBuilder content: () -> Content) {
-        self.init(title, tint: tint, content: content, footer: { EmptyView() })
+    init(_ title: String? = nil, tint: Color? = nil, weight: GlassWeight = .standard,
+         @ViewBuilder content: () -> Content) {
+        self.init(title, tint: tint, weight: weight, content: content, footer: { EmptyView() })
     }
 }
 
@@ -247,15 +298,22 @@ struct GlassDisclosureLabel<Content: View>: View {
 
 /// The leading SF Symbol of a settings row.
 ///
-/// One fixed column width keeps every title on the same baseline, and the symbol stays
-/// `.secondary`: icons say what a row is, they never add a colour of their own.
+/// One fixed column width keeps every title on the same baseline, and the symbol normally
+/// stays `.secondary`: icons say what a row is, they never add a colour of their own. The
+/// one exception is a row that is itself about a colour (`tint`), which passes it in.
 struct GlassRowIcon: View {
     let name: String
+    var tint: Color?
+
+    init(name: String, tint: Color? = nil) {
+        self.name = name
+        self.tint = tint
+    }
 
     var body: some View {
         Image(systemName: name)
             .font(.body)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(tint ?? Color.secondary)
             .frame(width: 22)
     }
 }

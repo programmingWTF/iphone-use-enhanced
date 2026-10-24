@@ -31,7 +31,7 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    GlassSection("准备工作") {
+                    GlassSection("准备工作", weight: .light) {
                         NavigationLink { LLMSettingsView(settings: llm) } label: {
                             CheckRow("模型 API 密钥", symbol: "cpu",
                                      detail: llm.problem ?? "\(llm.provider.title) · \(llm.model)",
@@ -42,7 +42,8 @@ struct SettingsView: View {
                         Button { isShowingPairingFilePicker = true } label: {
                             CheckRow("配对文件", symbol: "doc.text",
                                      detail: hasPairingFile ? "已导入。点击可替换。" : "点击导入。",
-                                     state: hasPairingFile ? .done : .error)
+                                     state: hasPairingFile ? .done : .error,
+                                     tint: Color.blue)
                         }
                         .buttonStyle(.haptic(.plain))
                         .glassRow()
@@ -66,10 +67,18 @@ struct SettingsView: View {
                         }
                         .glassRow()
                     } footer: {
-                        Link("如何获取配对文件", destination: Links.pairingFileGuide)
+                        // A link, drawn like one: the icon, an underline, and the same blue
+                        // as the 配对文件 row above it.
+                        Link(destination: Links.pairingFileGuide) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "questionmark.circle")
+                                Text("如何获取配对文件").underline()
+                            }
+                            .foregroundStyle(Color.blue)
+                        }
                     }
 
-                    GlassSection("语音") {
+                    GlassSection("语音", weight: .light) {
                         Picker(selection: $llm.voiceModel) {
                             ForEach(Set(LLMSettings.voiceModels + [llm.voiceModel]).sorted(), id: \.self) { Text($0).tag($0) }
                         } label: {
@@ -99,7 +108,7 @@ struct SettingsView: View {
                     }
                     .disabled(llm.provider != .openRouter)
 
-                    GlassSection("智能体") {
+                    GlassSection("智能体", weight: .light) {
                         HStack(spacing: 12) {
                             GlassRowIcon(name: "arrow.triangle.2.circlepath")
                             Stepper("最大步数：\(llm.maxSteps)", value: $llm.maxSteps, in: 5...500, step: 5)
@@ -142,7 +151,7 @@ struct SettingsView: View {
                             }
                     }
 
-                    GlassSection("关于") {
+                    GlassSection("关于", weight: .light) {
                         Link(destination: Links.repo) {
                             HStack(spacing: 12) {
                                 GlassRowIcon(name: "link")
@@ -219,19 +228,23 @@ private struct CheckRow: View {
     let symbol: String
     let detail: String
     let state: CheckState
+    /// A row that is itself about a colour (the pairing file's blue) passes it in; every
+    /// other row keeps the default label colour.
+    let tint: Color?
 
-    init(_ title: String, symbol: String, detail: String, state: CheckState) {
+    init(_ title: String, symbol: String, detail: String, state: CheckState, tint: Color? = nil) {
         self.title = title
         self.symbol = symbol
         self.detail = detail
         self.state = state
+        self.tint = tint
     }
 
     var body: some View {
         HStack(spacing: 12) {
-            GlassRowIcon(name: symbol)
+            GlassRowIcon(name: symbol, tint: tint)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).foregroundStyle(.primary)
+                Text(title).foregroundStyle(tint ?? Color.primary)
                 Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(3)
             }
             Spacer(minLength: 0)
@@ -285,7 +298,7 @@ private struct LLMSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                GlassSection {
+                GlassSection(weight: .light) {
                     Picker(selection: $settings.provider) {
                         ForEach(LLMProvider.allCases) { Text($0.title).tag($0) }
                     } label: {
@@ -327,7 +340,7 @@ private struct LLMSettingsView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
 
-                GlassSection {
+                GlassSection(weight: .light) {
                     Button {
                         isTesting = true
                         testMessage = nil
@@ -379,12 +392,12 @@ private struct ConnectionSettingsView: View {
             VStack(alignment: .leading, spacing: 22) {
                 // The only coloured card in Settings: it reports the live connection state,
                 // so here the colour is the information.
-                GlassSection(tint: statusTint) {
+                GlassSection(tint: statusTint, weight: .light) {
                     CheckRow("状态", symbol: "iphone", detail: connection.step.summary, state: connection.step.checkState)
                         .glassRow()
                 }
 
-                GlassSection {
+                GlassSection(weight: .light) {
                     Picker(selection: $vpnMode) {
                         Text("内置").tag(VPNMode.builtIn)
                         Text("LocalDevVPN").tag(VPNMode.localDevVPN)
@@ -415,7 +428,7 @@ private struct ConnectionSettingsView: View {
                     }
                 }
 
-                GlassSection {
+                GlassSection(weight: .light) {
                     Button { showDDIConfirmation = true } label: {
                         HStack(spacing: 12) {
                             GlassRowIcon(name: "externaldrive")
@@ -477,7 +490,7 @@ private struct BackgroundSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                GlassSection {
+                GlassSection(weight: .light) {
                     HStack(spacing: 12) {
                         GlassRowIcon(name: "location")
                         LabeledContent("定位权限", value: authorizationText)
@@ -508,7 +521,7 @@ private struct BackgroundSettingsView: View {
                     Text("后台定位只在权限为“始终”时才能让智能体保持运行。")
                 }
 
-                GlassSection {
+                GlassSection(weight: .light) {
                     HStack(spacing: 12) {
                         GlassRowIcon(name: "speaker.slash")
                         Toggle("静音音频", isOn: $keepAliveAudio)
