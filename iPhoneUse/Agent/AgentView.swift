@@ -440,38 +440,42 @@ private struct ChatList: View {
             .overlay {
                 if agent.history.isEmpty { Text("还没有会话").foregroundStyle(.secondary) }
             }
-            // 「对话」和齿轮是浮在列表上的两个玻璃按钮，底下不再铺任何底色：会话记录
-            // 会从按钮里折射出来，而不是被一条白带子盖住。滚动区底部留出按钮的高度，
-            // 所以最后一条也滚得上来。
+            // 列表要能一直滚到「物理屏幕底边」才消失：不 ignore 底部安全区的话，滚动区会在
+            // home indicator 上方 34pt 处被切掉，底下那条就是抽屉的背景色，看着像有块东西
+            // 压住了最后几行。ignore 之后最后几行直接从屏幕边缘滑出去。
+            .ignoresSafeArea(.container, edges: .bottom)
+            // 底部留出两个悬浮按钮的高度，最后一条才滚得到按钮上面来。
             .contentMargins(.bottom, 92, for: .scrollContent)
-            .overlay(alignment: .bottom) {
-                HStack {
-                    // 和右上角的新会话圆钮、输入框的发送键同一个紫色、同一层实底，
-                    // 三个按钮看起来是同一个东西，而不是三种紫。
-                    Button { select(nil) } label: {
-                        Label("对话", systemImage: "square.and.pencil")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 22)
-                            .frame(height: GlassMetrics.circle)
-                            .contentShape(Capsule())
-                    }
-                    .buttonStyle(.haptic(.plain))
-                    .glassPill(GlassTint.purple, interactive: true)
-                    Spacer()
-                    Button(action: openSettings) {
-                        Image(systemName: "gearshape")
-                            .font(.title3)
-                            .foregroundStyle(.primary)
-                            .glassCircle()
-                            .overlay(alignment: .topTrailing) { if needsSetup { BadgeDot().padding(6) } }
-                    }
-                    .buttonStyle(.haptic(.plain))
-                    .accessibilityLabel(needsSetup ? "设置，需先完成配置" : "设置")
+        }
+        // 按钮挂在整块抽屉上，不挂在滚动区上——滚动区已经 ignore 了底部安全区，按钮要是跟着
+        // 它走就会掉进 home indicator 那条带子里。
+        .overlay(alignment: .bottom) {
+            HStack {
+                // 和右上角的新会话圆钮、输入框的发送键同一个紫色、同一层实底，
+                // 三个按钮看起来是同一个东西，而不是三种紫。
+                Button { select(nil) } label: {
+                    Label("对话", systemImage: "square.and.pencil")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 22)
+                        .frame(height: GlassMetrics.circle)
+                        .contentShape(Capsule())
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 8)
+                .buttonStyle(.haptic(.plain))
+                .glassPill(GlassTint.purple, interactive: true)
+                Spacer()
+                Button(action: openSettings) {
+                    Image(systemName: "gearshape")
+                        .font(.title3)
+                        .foregroundStyle(.primary)
+                        .glassCircle()
+                        .overlay(alignment: .topTrailing) { if needsSetup { BadgeDot().padding(6) } }
+                }
+                .buttonStyle(.haptic(.plain))
+                .accessibilityLabel(needsSetup ? "设置，需先完成配置" : "设置")
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
         }
         .padding(.vertical, 8)
         .frame(width: width, alignment: .leading)
