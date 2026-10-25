@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "iphone-use-gateway",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-25",
+  "durable_objects": {
+    "bindings": [{ "name": "PHONE", "class_name": "PhoneGateway" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PhoneGateway"] }],
+  "observability": { "enabled": true, "traces": { "enabled": true } }
+}

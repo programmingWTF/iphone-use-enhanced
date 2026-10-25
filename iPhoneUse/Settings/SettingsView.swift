@@ -19,6 +19,7 @@ struct SettingsView: View {
     @ObservedObject private var llm = LLMSettings.shared
     @ObservedObject private var connection = Connection.shared
     @ObservedObject private var location = BackgroundLocationManager.shared
+    @ObservedObject private var remote = RemoteGateway.shared
     @AppStorage("keepAliveLocation") private var keepAliveLocation = true
     @Environment(\.scenePhase) private var scenePhase
 
@@ -80,6 +81,43 @@ struct SettingsView: View {
                             .foregroundStyle(Color.blue)
                         }
                     }
+
+                    GlassSection("远程调用", weight: .light) {
+                        Toggle(isOn: $remote.enabled) {
+                            HStack(spacing: 12) {
+                                GlassRowIcon(name: "network")
+                                Text("开放接口")
+                            }
+                        }
+                        .glassRow()
+                        if remote.enabled {
+                            GlassRowDivider()
+                            HStack(spacing: 12) {
+                                GlassRowIcon(name: "link")
+                                TextField("网关网址（https://…）", text: $remote.address)
+                                    .keyboardType(.URL)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .accessibilityLabel("网关网址")
+                            }
+                            .glassRow()
+                            GlassRowDivider()
+                            HStack(spacing: 12) {
+                                GlassRowIcon(name: "key.horizontal")
+                                SecureField("设备令牌", text: $remote.token)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .accessibilityLabel("设备令牌")
+                            }
+                            .glassRow()
+                            GlassRowDivider()
+                            Label(remote.status, systemImage: "antenna.radiowaves.left.and.right")
+                                .font(.footnote).foregroundStyle(.secondary).glassRow()
+                        }
+                    } footer: {
+                        Text("仅在前台接收任务，每次执行前由你确认。同时只处理一个任务，不建立待办队列。设备令牌由网关管理员提供，与模型 API 密钥不同。")
+                    }
+                    .disabled(remote.configurationLocked)
 
                     GlassSection("语音", weight: .light) {
                         Picker(selection: $llm.voiceModel) {

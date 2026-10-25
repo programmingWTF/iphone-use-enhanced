@@ -1,0 +1,18 @@
+{
+  "name": "iphone-use-gateway",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "types": "wrangler types",
+    "check": "tsc --noEmit",
+    "test": "node --test test/gateway.test.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.152.0",
+    "ws": "^8.22.0"
+  }
+}

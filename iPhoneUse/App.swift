@@ -18,7 +18,9 @@ struct IPhoneUseApp: App {
         WindowGroup {
             AgentView() // Settings opens from its toolbar
             .buttonStyle(.haptic(.automatic))
+            .onAppear { RemoteGateway.shared.setForeground(scenePhase == .active) }
             .onChange(of: scenePhase) { _, phase in
+                RemoteGateway.shared.setForeground(phase == .active)
                 switch phase {
                 case .background:
                     wasInBackground = true
