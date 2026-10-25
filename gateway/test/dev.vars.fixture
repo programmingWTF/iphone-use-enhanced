@@ -1,0 +1,5 @@
+# Fixture for CI: `cp test/dev.vars.fixture .dev.vars` before `npm test`.
+# Values match the defaults in test/gateway.test.mjs (TEST_DEVICE_TOKEN / TEST_AGENT_TOKEN);
+# the second agent key exists so the ownership-isolation assertion can use a valid-but-other token.
+DEVICE_TOKEN=local-device-test-token
+AGENT_KEYS={"local-agent-test-token":"Test Agent","other-agent-test-token":"Other Agent"}

@@ -47,4 +47,7 @@ jobs:
         run: npm run check
 
       - name: Test
-        run: npm test
+        run: |
+          # wrangler dev needs the secret bindings; CI has no .dev.vars, so use the fixture.
+          cp test/dev.vars.fixture .dev.vars
+          npm test
