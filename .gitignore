@@ -103,3 +103,8 @@ iPhoneUse/idevice/sim/
 .build/
 scripts/*.png
 scripts/agent.log
+
+## Local build output
+# `gh run download` drops the unsigned IPAs here; they are hundreds of megabytes and
+# must never be committed (fresh ones come from the CI workflow).
+dist/
