@@ -10,14 +10,17 @@ import SwiftUI
 
 struct ModelPicker: View {
     @ObservedObject var settings: LLMSettings
+    @ObservedObject private var language = LanguageStore.shared
     @State private var showingModels = false
 
     var body: some View {
         Button { showingModels = true } label: {
-            LabeledContent("模型") {
-                Text(settings.model.isEmpty ? "选择模型" : settings.model)
+            LabeledContent {
+                Text(settings.model.isEmpty ? t("选择模型") : settings.model)
                     .multilineTextAlignment(.trailing)
                     .lineLimit(2)
+            } label: {
+                Text(t("模型"))
             }
             .contentShape(.rect)
         }
@@ -30,6 +33,7 @@ struct ModelPicker: View {
 
 struct ModelSelectionView: View {
     @ObservedObject var settings: LLMSettings
+    @ObservedObject private var language = LanguageStore.shared
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
     @State private var customID = ""
@@ -44,26 +48,26 @@ struct ModelSelectionView: View {
         NavigationStack {
             List {
                 Section {
-                    TextField("模型 ID", text: $customID)
+                    TextField(t("模型 ID"), text: $customID)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .onSubmit(useCustomID)
-                    Button("使用该模型 ID", action: useCustomID)
+                    Button(t("使用该模型 ID"), action: useCustomID)
                         .disabled(customID.trimmingCharacters(in: .whitespaces).isEmpty)
                         .glassButton(prominent: true)
                 } header: {
-                    Text("自定义模型")
+                    Text(t("自定义模型"))
                 } footer: {
-                    Text("该模型需要支持图片输入和工具调用。")
+                    Text(t("该模型需要支持图片输入和工具调用。"))
                 }
-                Section("模型") {
+                Section {
                     ForEach(matches, id: \.self) { id in
                         Button { choose(id) } label: {
                             HStack {
                                 Text(id).foregroundStyle(.primary)
                                 Spacer()
                                 if id == settings.model {
-                                    Image(systemName: "checkmark").accessibilityLabel("已选择")
+                                    Image(systemName: "checkmark").accessibilityLabel(t("已选择"))
                                 }
                             }
                             .contentShape(.rect)
@@ -71,20 +75,24 @@ struct ModelSelectionView: View {
                         .buttonStyle(.haptic(.plain))
                     }
                     if settings.loadingModels {
-                        ProgressView("正在加载模型…")
+                        ProgressView { Text(t("正在加载模型…")) }
                     } else if let error = settings.modelsError {
                         Text(error).font(.footnote).foregroundStyle(.secondary)
                     }
+                } header: {
+                    Text(t("模型"))
                 }
             }
-            .searchable(text: $search, prompt: "搜索模型")
-            .navigationTitle("选择模型")
+            .searchable(text: $search, prompt: Text(t("搜索模型")))
+            .navigationTitle(t("选择模型"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(t("取消")) { dismiss() } }
                 ToolbarItem(placement: .primaryAction) {
-                    Button("刷新", systemImage: "arrow.clockwise") { Task { await settings.loadModels() } }
-                        .disabled(settings.loadingModels)
+                    Button { Task { await settings.loadModels() } } label: {
+                        Label(t("刷新"), systemImage: "arrow.clockwise")
+                    }
+                    .disabled(settings.loadingModels)
                 }
             }
             .task {

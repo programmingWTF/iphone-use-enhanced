@@ -15,6 +15,7 @@ struct AgentView: View {
     @ObservedObject private var connection = Connection.shared
     @ObservedObject private var llm = LLMSettings.shared
     @ObservedObject private var voice = VoiceRecorder.shared
+    @ObservedObject private var language = LanguageStore.shared
     @State private var prompt = ""
     @FocusState private var composerFocused: Bool
     @State private var openRun: RunRecord.ID? // nil = the live chat
@@ -71,7 +72,7 @@ struct AgentView: View {
         .sheet(isPresented: $showSettings) { SettingsView() }
         .sheet(isPresented: $showShortcutsGuide) {
             NavigationStack {
-                ShortcutsGuideView().toolbar { Button("完成") { showShortcutsGuide = false } }
+                ShortcutsGuideView().toolbar { Button(t("完成")) { showShortcutsGuide = false } }
             }
         }
         // iphoneuse://run?prompt=... starts a new session, like the Run Agent intent.
@@ -156,7 +157,7 @@ struct AgentView: View {
                     }
                     if agent.isRunning {
                         Button { agent.stop() } label: {
-                            Label("停止会话", systemImage: "stop.fill")
+                            Label(t("停止会话"), systemImage: "stop.fill")
                                 .font(.title3.bold())
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
@@ -174,7 +175,7 @@ struct AgentView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("会话列表", systemImage: "line.3.horizontal") { setMenu(true) }
+                    Button(t("会话列表"), systemImage: "line.3.horizontal") { setMenu(true) }
                 }
                 // A round purple glass button, the same hue as the send button: Settings
                 // moved to the drawer, so the top-right corner is a single circle. The
@@ -196,18 +197,20 @@ struct AgentView: View {
                     .buttonStyle(.haptic(.plain))
                     .disabled(newSessionDisabled)
                     .opacity(newSessionDisabled ? 0.55 : 1)
-                    .accessibilityLabel("新会话")
+                    .accessibilityLabel(t("新会话"))
                 }
                 .withoutSharedBackground()
             }
         }
     }
 
-    private static let suggestions = [
-        ("message.fill", Color.green, "看看微信里有没有等我回的消息，列出来，先别回"),
-        ("bag.fill", Color.orange, "用美团外卖点一份附近评分高的午饭，别超过 30 元"),
-        ("creditcard.fill", Color.blue, "打开支付宝，看看这个月的账单都花在哪了"),
-    ]
+    private static var suggestions: [(String, Color, String)] {
+        [
+            ("message.fill", Color.green, t("看看微信里有没有等我回的消息，列出来，先别回")),
+            ("bag.fill", Color.orange, t("用美团外卖点一份附近评分高的午饭，别超过 30 元")),
+            ("creditcard.fill", Color.blue, t("打开支付宝，看看这个月的账单都花在哪了")),
+        ]
+    }
 
     /// Starter prompts on a new chat, sitting just above the composer.
     /// No glass at all: only a hairline rim, so the three starters stay quiet on a page
@@ -283,7 +286,7 @@ struct AgentView: View {
         // 这颗圆的中线上；输入框长到多行时，两个按钮也还是垂直居中。
         HStack(alignment: .center, spacing: 8) {
             if voice.state == .idle {
-                TextField(agent.question == nil ? "问点什么" : "回答", text: $prompt, axis: .vertical)
+                TextField(agent.question == nil ? t("问点什么") : t("回答"), text: $prompt, axis: .vertical)
                     .lineLimit(1...6)
                     .focused($composerFocused)
                     .frame(minHeight: 34)
@@ -302,7 +305,7 @@ struct AgentView: View {
                     .glassCircle(canSend ? GlassTint.purple : nil)
             }
             .disabled(!canSend)
-            .accessibilityLabel(agent.question == nil ? "发送" : "发送回答")
+            .accessibilityLabel(agent.question == nil ? t("发送") : t("发送回答"))
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 10)
@@ -347,6 +350,7 @@ struct AgentView: View {
 /// Tap to start (it becomes a stop button), or hold and release.
 private struct MicButton: View {
     @ObservedObject var voice: VoiceRecorder
+    @ObservedObject private var language = LanguageStore.shared
     let enabled: Bool
     let stop: () -> Void
     @State private var pressStart: Date?
@@ -372,7 +376,7 @@ private struct MicButton: View {
                     let held = Date.now.timeIntervalSince(start) > 0.4
                     if voice.state == .recording, !startedByPress || held { stop() }
                 })
-            .accessibilityLabel(voice.state == .recording ? "停止录音" : "语音输入")
+            .accessibilityLabel(voice.state == .recording ? t("停止录音") : t("语音输入"))
             .accessibilityAddTraits(.isButton)
             .accessibilityAction {
                 if voice.state == .recording { stop() } else if enabled { Task { await voice.start() } }
@@ -407,6 +411,7 @@ private struct Waveform: View {
 /// The drawer behind the chat: past runs, newest first, plus new chat and settings.
 private struct ChatList: View {
     @ObservedObject var agent: PhoneAgent
+    @ObservedObject private var language = LanguageStore.shared
     let width: CGFloat
     let openRun: RunRecord.ID?
     let select: (RunRecord.ID?) -> Void
@@ -418,7 +423,7 @@ private struct ChatList: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("历史记录")
+            Text(t("历史记录"))
                 .font(.largeTitle.bold())
                 .padding(.horizontal, 20)
             ScrollView {
@@ -429,8 +434,8 @@ private struct ChatList: View {
                         }
                         .buttonStyle(.haptic(.plain))
                         .contextMenu {
-                            Button("使用该提示词", systemImage: "arrow.uturn.left") { reuse(run.prompt) }
-                            Button("删除", systemImage: "trash", role: .destructive) {
+                            Button(t("使用该提示词"), systemImage: "arrow.uturn.left") { reuse(run.prompt) }
+                            Button(t("删除"), systemImage: "trash", role: .destructive) {
                                 if openRun == run.id { select(nil) }
                                 agent.deleteRun(run.id)
                             }
@@ -443,7 +448,7 @@ private struct ChatList: View {
                 .padding(.horizontal, 8)
             }
             .overlay {
-                if agent.history.isEmpty { Text("还没有会话").foregroundStyle(.secondary) }
+                if agent.history.isEmpty { Text(t("还没有会话")).foregroundStyle(.secondary) }
             }
             // Only the content gets clearance for the floating controls. The viewport
             // itself reaches the display edge, with no white band or system edge fade.
@@ -457,7 +462,7 @@ private struct ChatList: View {
                 // 和右上角的新会话圆钮、输入框的发送键同一个紫色、同一层实底，
                 // 三个按钮看起来是同一个东西，而不是三种紫。
                 Button { select(nil) } label: {
-                    Label("对话", systemImage: "square.and.pencil")
+                    Label(t("对话"), systemImage: "square.and.pencil")
                         .font(.headline)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 22)
@@ -475,7 +480,7 @@ private struct ChatList: View {
                         .overlay(alignment: .topTrailing) { if needsSetup { BadgeDot().padding(6) } }
                 }
                 .buttonStyle(.haptic(.plain))
-                .accessibilityLabel(needsSetup ? "设置，需先完成配置" : "设置")
+                .accessibilityLabel(needsSetup ? t("设置，需先完成配置") : t("设置"))
             }
             .padding(.horizontal, 20)
             .padding(.bottom, bottomInset + 16)
@@ -527,6 +532,7 @@ private struct ChatList: View {
 private struct ChatRow: View {
     let entry: ChatEntry
 
+    @ObservedObject private var language = LanguageStore.shared
     @State private var showingFullText = false
     @State private var copied = false
 
@@ -547,10 +553,10 @@ private struct ChatRow: View {
                     .glassSurface(GlassTint.purple, cornerRadius: 20)
                     .contextMenu {
                         Button { copyText() } label: {
-                            Label("复制", systemImage: "doc.on.doc")
+                            Label(t("复制"), systemImage: "doc.on.doc")
                         }
                         Button { showingFullText = true } label: {
-                            Label("选择文本", systemImage: "text.cursor")
+                            Label(t("选择文本"), systemImage: "text.cursor")
                         }
                     }
                 if copied { copiedBadge }
@@ -570,10 +576,10 @@ private struct ChatRow: View {
                     .glassSurface(cornerRadius: 20)
                     .contextMenu {
                         Button { copyText() } label: {
-                            Label("复制", systemImage: "doc.on.doc")
+                            Label(t("复制"), systemImage: "doc.on.doc")
                         }
                         Button { showingFullText = true } label: {
-                            Label("选择文本", systemImage: "text.cursor")
+                            Label(t("选择文本"), systemImage: "text.cursor")
                         }
                     }
                 if copied { copiedBadge }
@@ -594,7 +600,7 @@ private struct ChatRow: View {
 
     /// Confirm the copy without an alert: a small pill under the bubble, gone in two seconds.
     private var copiedBadge: some View {
-        Text("已复制")
+        Text(t("已复制"))
             .font(.caption2.weight(.medium))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 8)
@@ -633,12 +639,13 @@ private extension EnvironmentValues {
 /// A run's steps side by side, newest on the right and kept in view.
 private struct StepCarousel: View {
     let steps: [ChatEntry]
+    @ObservedObject private var language = LanguageStore.shared
     @State private var viewing: ChatEntry.ID?
     @Environment(\.carouselFrames) private var carousels
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("步骤").font(.headline)
+            Text(t("步骤")).font(.headline)
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     // ponytail: non-lazy so cards keep their fade state; fine for maxSteps-sized runs.
@@ -669,6 +676,7 @@ private struct ShotViewer: View {
     let shots: [ChatEntry]
     @Binding var selection: ChatEntry.ID?
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var language = LanguageStore.shared
     @State private var pull: CGFloat = 0 // swipe down to close
 
     var body: some View {
@@ -700,7 +708,7 @@ private struct ShotViewer: View {
                         .glassCircle()
                 }
                 .buttonStyle(.haptic(.plain))
-                .accessibilityLabel("关闭")
+                .accessibilityLabel(t("关闭"))
             }
             .padding(.horizontal, 20)
 
@@ -812,31 +820,34 @@ private struct PulsingDots: View {
 private struct CellularHelpView: View {
     let connect: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var language = LanguageStore.shared
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    Text("iOS 不允许通过蜂窝数据连接这台 iPhone。请接入 Wi-Fi，或在连接时先关闭蜂窝数据：连上之后可以再打开。")
+                    Text(t("iOS 不允许通过蜂窝数据连接这台 iPhone。请接入 Wi-Fi，或在连接时先关闭蜂窝数据：连上之后可以再打开。"))
                 }
-                Section("方式一") {
-                    Text("在控制中心关闭蜂窝数据，然后：")
-                    Button("连接") { connect() }
+                Section {
+                    Text(t("在控制中心关闭蜂窝数据，然后："))
+                    Button(t("连接")) { connect() }
+                } header: {
+                    Text(t("方式一"))
                 }
                 Section {
                     Link(destination: CellularShortcut.installURL) {
-                        Label("安装蜂窝数据开关快捷指令", systemImage: "square.and.arrow.down")
+                        Label(t("安装蜂窝数据开关快捷指令"), systemImage: "square.and.arrow.down")
                     }
-                    Button("连接") { connect() }
+                    Button(t("连接")) { connect() }
                 } header: {
-                    Text("方式二")
+                    Text(t("方式二"))
                 } footer: {
-                    Text("这个快捷指令只需添加一次。之后连接时 App 会自行关闭再打开蜂窝数据。")
+                    Text(t("这个快捷指令只需添加一次。之后连接时 App 会自行关闭再打开蜂窝数据。"))
                 }
             }
-            .navigationTitle("使用蜂窝数据时")
+            .navigationTitle(t("使用蜂窝数据时"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { Button("关闭") { dismiss() } }
+            .toolbar { Button(t("关闭")) { dismiss() } }
         }
         .presentationDetents([.medium, .large])
     }
@@ -845,6 +856,7 @@ private struct CellularHelpView: View {
 private struct ConnectionStatus: View {
     @ObservedObject var connection: Connection
     let openSettings: () -> Void
+    @ObservedObject private var language = LanguageStore.shared
     @State private var showCellularHelp = false
 
     var body: some View {
@@ -852,7 +864,7 @@ private struct ConnectionStatus: View {
             switch connection.step {
             case .idle:
                 Image(systemName: "circle").foregroundStyle(.secondary)
-                Text("未连接").foregroundStyle(.secondary)
+                Text(t("未连接")).foregroundStyle(.secondary)
             case .working(let message):
                 ProgressView().controlSize(.mini)
                 if DDIDownloadCenter.shared.isRunning {
@@ -864,7 +876,7 @@ private struct ConnectionStatus: View {
                 }
             case .ready:
                 Image(systemName: "circle.fill").foregroundStyle(.green)
-                Text("已连接这台 iPhone")
+                Text(t("已连接这台 iPhone"))
             case .failed(let message):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 Text(message).foregroundStyle(.secondary)
@@ -873,11 +885,11 @@ private struct ConnectionStatus: View {
             if showsConnect {
                 // Without a pairing file, connecting fails instantly with the same message: send to Settings instead.
                 if connection.hasPairingFile {
-                    Button("连接") { connect() }
+                    Button(t("连接")) { connect() }
                         .glassButton()
                         .controlSize(.small)
                 } else {
-                    Button("去设置", action: openSettings)
+                    Button(t("去设置"), action: openSettings)
                         .glassButton()
                         .controlSize(.small)
                 }

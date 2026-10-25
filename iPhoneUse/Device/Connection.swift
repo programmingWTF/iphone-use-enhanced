@@ -49,28 +49,28 @@ final class Connection: ObservableObject {
     }
 
     private func run(userInitiated: Bool) async {
-        var currentStep = "启动中"
+        var currentStep = t("启动中")
         guard hasPairingFile else {
-            step = .failed("请在设置中导入配对文件。")
+            step = .failed(t("请在设置中导入配对文件。"))
             return
         }
         blockedByCellular = false
         do {
             var notice = ""
             if VPNMode.current == .builtIn {
-                currentStep = "内置 VPN"
-                step = .working("正在启动 VPN…")
+                currentStep = t("内置 VPN")
+                step = .working(t("正在启动 VPN…"))
                 do {
                     try await LoopbackVPN.start()
                 } catch let error as NSError where error.domain == NEVPNErrorDomain {
                     // No Network Extension entitlement (BUILTIN_VPN=NO build) or the VPN prompt was refused.
                     VPNMode.current = .localDevVPN
-                    notice = "内置 VPN 不可用（\(error.localizedDescription)），已切换到 LocalDevVPN。\n"
+                    notice = t("内置 VPN 不可用（%@），已切换到 LocalDevVPN。\n", error.localizedDescription)
                 }
             }
 
-            currentStep = "隧道"
-            step = .working("正在连接这台 iPhone…")
+            currentStep = t("隧道")
+            step = .working(t("正在连接这台 iPhone…"))
             // Keep a tunnel that still answers: on cellular only, iOS refuses new
             // connections to the VPN peer but leaves established ones alone.
             let alive = await Task.detached(priority: .userInitiated) {
@@ -82,42 +82,43 @@ final class Connection: ObservableObject {
                 if cellularOnly {
                     var turnedOff = false
                     if usesCellularShortcut || userInitiated {
-                        step = .working("正在关闭蜂窝数据…")
+                        step = .working(t("正在关闭蜂窝数据…"))
                         turnedOff = await CellularShortcut.turnOff()
                         usesCellularShortcut = turnedOff
                     }
                     guard turnedOff else {
-                        step = .failed("当前为蜂窝数据：请关闭蜂窝数据后再连接，或接入 Wi-Fi。")
+                        step = .failed(t("当前为蜂窝数据：请关闭蜂窝数据后再连接，或接入 Wi-Fi。"))
                         blockedByCellular = true
                         return
                     }
-                    step = .working("正在连接这台 iPhone…")
+                    step = .working(t("正在连接这台 iPhone…"))
                 }
                 defer { if cellularOnly { CellularShortcut.turnOn() } }
                 do {
                     try await Task.detached(priority: .userInitiated) { try DeviceSession.shared.startTunnel() }.value
                 } catch where VPNMode.current == .localDevVPN && (error as NSError).code != -9 {
+                    let localDevVPNHint = t("无法连接这台 iPhone。请从 App Store 安装 LocalDevVPN，打开它，然后点重新连接。")
                     throw NSError(domain: "iPhoneUse", code: -21, userInfo: [
-                        NSLocalizedDescriptionKey: notice + "无法连接这台 iPhone。请从 App Store 安装 LocalDevVPN，打开它，然后点重新连接。",
+                        NSLocalizedDescriptionKey: notice + localDevVPNHint,
                     ])
                 }
             }
 
             if !DeveloperDiskImageService.filesAreReady {
-                currentStep = "下载开发者磁盘映像"
-                step = .working("正在下载开发者磁盘映像…")
+                currentStep = t("下载开发者磁盘映像")
+                step = .working(t("正在下载开发者磁盘映像…"))
                 try await DeveloperDiskImageService.shared.downloadMissingFiles()
             }
-            currentStep = "挂载开发者磁盘映像"
-            step = .working("正在挂载开发者磁盘映像…")
+            currentStep = t("挂载开发者磁盘映像")
+            step = .working(t("正在挂载开发者磁盘映像…"))
             try await Task.detached(priority: .userInitiated) { try Self.mountDDIIfNeeded() }.value
 
             step = .ready
         } catch {
             let nsError = error as NSError
             let message = nsError.code == -9
-                ? "配对文件无效或已过期，请在设置中导入新的配对文件。"
-                : "[\(currentStep)] \(nsError.domain)/\(nsError.code): \(error.localizedDescription)\n目标：\(RemotePairingPortResolver.lastAttemptDescription)"
+                ? t("配对文件无效或已过期，请在设置中导入新的配对文件。")
+                : t("[%@] %@/%@: %@\n目标：%@", currentStep, nsError.domain, String(nsError.code), error.localizedDescription, RemotePairingPortResolver.lastAttemptDescription)
             DeviceSession.appendLog("connect failed at step '\(currentStep)': \(nsError.domain)/\(nsError.code) \(error.localizedDescription)")
             appLog.error("Connection failed: \(message, privacy: .public)")
             step = .failed(message)
@@ -169,7 +170,7 @@ enum LoopbackVPN {
             try await Task.sleep(for: .milliseconds(200))
         }
         throw NSError(domain: "iPhoneUse", code: -20, userInfo: [
-            NSLocalizedDescriptionKey: "环回 VPN 未能连接（状态 \(connection.status.rawValue)）。Wi-Fi 是否已打开？",
+            NSLocalizedDescriptionKey: t("环回 VPN 未能连接（状态 %@）。Wi-Fi 是否已打开？", String(connection.status.rawValue)),
         ])
     }
 

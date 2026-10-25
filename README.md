@@ -36,10 +36,10 @@ iPhone Use 是一个运行在 iPhone 上的 iOS App：你在聊天框里写下�
 | 构建与分发 | 需要 Mac，用 Xcode 手动编译 | **GitHub Actions 自动出未签名 IPA，直接挂到 Release**，没有 Mac 也能拿到安装包 |
 | 国内网络 | DDI 从 GitHub raw 下载，经常卡住 | DDI 多镜像回退（`ghfast.top` / `gh-proxy.com` / raw），带**单卡实时进度**（速度、剩余时间、失败镜像） |
 | 中文输入 | 只能敲 ASCII，中文被静默丢弃 | 支持**拼音输入 + 候选栏选字**，并提供 `long_press` 工具打开「粘贴」菜单兜底 |
-| 界面语言 | 全英文 | **全中文界面**（含快捷指令意图、系统提示词、错误文案） |
+| 界面语言 | 全英文 | **默认全中文，设置里可一键切英文**（系统提示词保持原文，不随切换；快捷指令意图与系统权限提示跟系统语言） |
 | 模型回复 | 纯文本 | **Markdown 渲染**：标题、粗斜体、任务列表、代码块（语言标签 + 复制按钮）、表格、引用、`$…$` / `$$…$$` 近似公式、`\*` 转义 |
 | 界面风格 | 系统毛玻璃 | **液态玻璃（Liquid Glass）** 体系：iOS 26 走原生 `glassEffect`，17.4 回退毛玻璃；紫色只用在「新建会话 / 发送 / 用户气泡」三处 |
-| 模型接入 | OpenRouter | 任意 OpenAI 兼容端点，**默认适配 DeepSeek**（`deepseek-flash` 支持视觉 + 工具调用） |
+| 模型接入 | 只有 OpenRouter | 内置 **OpenRouter / DeepSeek**（默认 DeepSeek，`deepseek-flash` 支持视觉 + 工具调用），也可填任意 OpenAI 兼容端点 |
 | 快捷指令 | 只能启动 | `RunAgentIntent` **可返回结果**，另有 `Get Last Agent Result` 供 Siri 朗读 |
 | 远程协作 | 无 | 可选 **Cloudflare Worker 网关**（`gateway/`），默认关闭，需要设备令牌与批准，全程有明确的安全边界 |
 

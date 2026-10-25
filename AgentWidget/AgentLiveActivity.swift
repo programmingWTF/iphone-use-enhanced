@@ -73,11 +73,12 @@ private struct StatusText: View {
     let context: ActivityViewContext<AgentActivityAttributes>
 
     var body: some View {
+        let language = AppLanguage(rawValue: context.state.language) ?? .chinese
         if context.state.running {
-            Text("第 \(context.state.step) 步")
+            Text(t("第 %@ 步", language: language, String(context.state.step)))
                 .monospacedDigit()
         } else {
-            Text("已完成")
+            Text(t("已完成", language: language))
         }
     }
 }
@@ -86,12 +87,13 @@ private struct StopButton: View {
     let context: ActivityViewContext<AgentActivityAttributes>
 
     var body: some View {
+        let language = AppLanguage(rawValue: context.state.language) ?? .chinese
         if context.state.running {
             Button(intent: StopAgentIntent()) {
                 Image(systemName: "stop.fill")
             }
             .tint(.red)
-            .accessibilityLabel("停止运行")
+            .accessibilityLabel(t("停止运行", language: language))
         }
     }
 }

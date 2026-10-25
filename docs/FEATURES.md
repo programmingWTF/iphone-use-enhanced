@@ -29,11 +29,16 @@ doesn't need stays out, to keep the code and the binary small.
   phone connection (reconnect, redownload DDI), run in background (location "Always" + keep-alive toggles).
   No catch-all "Advanced": every option sits under a named row.
 - LLM *(new; picker modeled on [esp32-iphone-agent](https://github.com/onehumanbeing/esp32-iphone-agent))*:
-  - API key, stored in the Keychain (replaces the bundled `openrouter.txt`)
-  - Provider: OpenRouter or a custom OpenAI-compatible base URL
-  - Model: picked from OpenRouter's model list, or typed as a free-text model ID
+  - API key, stored in the Keychain (replaces the bundled `openrouter.txt`), one key per provider
+  - Provider: **DeepSeek (default, `https://api.deepseek.com/v1`, model `deepseek-flash`)**, OpenRouter, or a
+    custom OpenAI-compatible base URL
+  - Model: picked from the provider's model list, or typed as a free-text model ID
   - Max steps (today hard-coded to 40)
-  - Editable system prompt
+  - Editable system prompt (never translated: it is the model's instruction text, not UI copy)
+- UI language: **Simplified Chinese by default**, switchable to English in Settings; every user-facing string
+  re-renders immediately (`Shared/Localization.swift` + `Shared/L10n*.swift`) except the system prompt,
+  protocol payloads (`done:` / `error:` / `rejected:`), and the model-facing tool hints. Shortcuts phrases,
+  system permission prompts and existing chat history are not retro-translated.
 - Pairing file import + status row
 - Redownload DDI button
 - Background keep-alive: silent audio, background location

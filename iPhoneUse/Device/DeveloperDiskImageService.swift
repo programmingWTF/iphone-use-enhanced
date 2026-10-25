@@ -133,7 +133,7 @@ final class DeveloperDiskImageService {
                 lastError = error
                 let reason = Self.shortReason(error)
                 await MainActor.run {
-                    DDIDownloadCenter.shared.noteFailure("\(sourceName)：\(reason)")
+                    DDIDownloadCenter.shared.noteFailure(t("%@：%@", sourceName, reason))
                 }
             }
         }
@@ -205,19 +205,19 @@ final class DeveloperDiskImageService {
     // MARK: - Naming for the progress card
 
     private static func sourceName(for urlString: String) -> String {
-        if urlString.hasPrefix("https://ghfast.top/") { return "ghfast.top 镜像" }
-        if urlString.hasPrefix("https://gh-proxy.com/") { return "gh-proxy 镜像" }
+        if urlString.hasPrefix("https://ghfast.top/") { return t("ghfast.top 镜像") }
+        if urlString.hasPrefix("https://gh-proxy.com/") { return t("gh-proxy 镜像") }
         if urlString.contains("raw.githubusercontent.com") { return "GitHub Raw" }
         if urlString.contains("github.com") { return "GitHub" }
-        return URL(string: urlString)?.host ?? "镜像源"
+        return URL(string: urlString)?.host ?? t("镜像源")
     }
 
     private static func shortReason(_ error: Error) -> String {
         if let ddi = error as? DDIDownloadError {
             switch ddi {
             case .badStatus(let statusCode): return "HTTP \(statusCode)"
-            case .invalidResponse: return "响应无效"
-            case .invalidURL: return "地址无效"
+            case .invalidResponse: return t("响应无效")
+            case .invalidURL: return t("地址无效")
             }
         }
         let nsError = error as NSError
@@ -225,11 +225,11 @@ final class DeveloperDiskImageService {
             return nsError.localizedDescription
         }
         switch nsError.code {
-        case NSURLErrorTimedOut: return "超时"
-        case NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost: return "连不上"
-        case NSURLErrorNetworkConnectionLost: return "连接中断"
-        case NSURLErrorNotConnectedToInternet: return "没有网络"
-        case NSURLErrorSecureConnectionFailed: return "TLS 失败"
+        case NSURLErrorTimedOut: return t("超时")
+        case NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost: return t("连不上")
+        case NSURLErrorNetworkConnectionLost: return t("连接中断")
+        case NSURLErrorNotConnectedToInternet: return t("没有网络")
+        case NSURLErrorSecureConnectionFailed: return t("TLS 失败")
         default: return nsError.localizedDescription
         }
     }
@@ -267,51 +267,57 @@ final class DeveloperDiskImageService {
         ]
     }
 
-    private static let cryptexDownloadItems: [DDIDownloadItem] = [
-        .init(
-            name: "构建清单",
-            fileName: "BuildManifest.plist",
-            urlStrings: candidates("Xcode_iOS_DDI_Cryptex/BuildManifest.plist")
-        ),
-        .init(
-            name: "映像",
-            fileName: "Image.dmg",
-            urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg")
-        ),
-        .init(
-            name: "信任缓存",
-            fileName: "Image.dmg.trustcache",
-            urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg.trustcache")
-        ),
-        .init(
-            name: "Cryptex 信息",
-            fileName: "Image.dmg.cryptex_info",
-            urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg.cryptex_info")
-        ),
-        .init(
-            name: "根哈希",
-            fileName: "Image.dmg.root_hash",
-            urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg.root_hash")
-        )
-    ]
+    // Resolved on each access so the file labels follow the in-app language switch.
+    private static var cryptexDownloadItems: [DDIDownloadItem] {
+        [
+            .init(
+                name: t("构建清单"),
+                fileName: "BuildManifest.plist",
+                urlStrings: candidates("Xcode_iOS_DDI_Cryptex/BuildManifest.plist")
+            ),
+            .init(
+                name: t("映像"),
+                fileName: "Image.dmg",
+                urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg")
+            ),
+            .init(
+                name: t("信任缓存"),
+                fileName: "Image.dmg.trustcache",
+                urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg.trustcache")
+            ),
+            .init(
+                name: t("Cryptex 信息"),
+                fileName: "Image.dmg.cryptex_info",
+                urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg.cryptex_info")
+            ),
+            .init(
+                name: t("根哈希"),
+                fileName: "Image.dmg.root_hash",
+                urlStrings: candidates("Xcode_iOS_DDI_Cryptex/Image.dmg.root_hash")
+            )
+        ]
+    }
 
-    private static let personalizedDownloadItems: [DDIDownloadItem] = [
-        .init(
-            name: "构建清单",
-            fileName: "BuildManifest.plist",
-            urlStrings: candidates("Xcode_iOS_DDI_Personalized/BuildManifest.plist")
-        ),
-        .init(
-            name: "映像",
-            fileName: "Image.dmg",
-            urlStrings: candidates("Xcode_iOS_DDI_Personalized/Image.dmg")
-        ),
-        .init(
-            name: "信任缓存",
-            fileName: "Image.dmg.trustcache",
-            urlStrings: candidates("Xcode_iOS_DDI_Personalized/Image.dmg.trustcache")
-        )
-    ]
+    // Resolved on each access so the file labels follow the in-app language switch.
+    private static var personalizedDownloadItems: [DDIDownloadItem] {
+        [
+            .init(
+                name: t("构建清单"),
+                fileName: "BuildManifest.plist",
+                urlStrings: candidates("Xcode_iOS_DDI_Personalized/BuildManifest.plist")
+            ),
+            .init(
+                name: t("映像"),
+                fileName: "Image.dmg",
+                urlStrings: candidates("Xcode_iOS_DDI_Personalized/Image.dmg")
+            ),
+            .init(
+                name: t("信任缓存"),
+                fileName: "Image.dmg.trustcache",
+                urlStrings: candidates("Xcode_iOS_DDI_Personalized/Image.dmg.trustcache")
+            )
+        ]
+    }
 
 }
 
@@ -334,11 +340,11 @@ enum DDIDownloadError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL(let string):
-            return "下载地址无效：\(string)"
+            return t("下载地址无效：%@", string)
         case .invalidResponse:
-            return "DDI 服务器返回了无效的响应。"
+            return t("DDI 服务器返回了无效的响应。")
         case .badStatus(let statusCode):
-            return "DDI 服务器返回了 HTTP \(statusCode)。"
+            return t("DDI 服务器返回了 HTTP %@。", String(statusCode))
         }
     }
 }

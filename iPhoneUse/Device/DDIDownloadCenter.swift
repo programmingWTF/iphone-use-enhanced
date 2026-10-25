@@ -158,11 +158,11 @@ final class DDIDownloadCenter {
     }
 
     static func remainingText(_ seconds: Double?) -> String {
-        guard let seconds, seconds.isFinite else { return "剩余时间未知" }
-        if seconds < 1 { return "马上完成" }
-        if seconds < 60 { return "还剩 \(Int(seconds.rounded())) 秒" }
+        guard let seconds, seconds.isFinite else { return t("剩余时间未知") }
+        if seconds < 1 { return t("马上完成") }
+        if seconds < 60 { return t("还剩 %@ 秒", String(Int(seconds.rounded()))) }
         let minutes = Int((seconds / 60).rounded(.down))
         let rest = Int((seconds - Double(minutes) * 60).rounded())
-        return "还剩 \(minutes) 分 \(rest) 秒"
+        return t("还剩 %@ 分 %@ 秒", String(minutes), String(rest))
     }
 }

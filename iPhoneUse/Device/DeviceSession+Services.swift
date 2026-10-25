@@ -49,24 +49,24 @@ private enum IdeviceBridge {
         do {
             let data = try Data(contentsOf: url, options: .mappedIfSafe)
             guard !data.isEmpty else {
-                throw makeError(message: "\(description) 为空")
+                throw makeError(message: t("%@ 为空", description))
             }
             return data
         } catch let error as NSError {
-            throw makeError(code: error.code, message: "读取 \(description) 失败：\(error.localizedDescription)")
+            throw makeError(code: error.code, message: t("读取 %@ 失败：%@", description, error.localizedDescription))
         }
     }
 
     static func uint64Value(from plist: plist_t?, fieldName: String) throws -> UInt64 {
         guard let plist else {
-            throw makeError(message: "lockdownd 未返回 \(fieldName)")
+            throw makeError(message: t("lockdownd 未返回 %@", fieldName))
         }
 
         var value: UInt64 = 0
         plist_get_uint_val(plist, &value)
 
         guard value != 0 else {
-            throw makeError(message: "无法解析 \(fieldName)")
+            throw makeError(message: t("无法解析 %@", fieldName))
         }
 
         return value
@@ -118,15 +118,15 @@ private enum IdeviceBridge {
 
     static func plistDictionaries(adapter: OpaquePointer, handshake: OpaquePointer) throws -> [[String: Any]] {
         try withConnectedClient(
-            fallback: "无法连接安装代理服务",
-            missingClientMessage: "安装代理客户端未能创建",
+            fallback: t("无法连接安装代理服务"),
+            missingClientMessage: t("安装代理客户端未能创建"),
             connect: { installation_proxy_connect_rsd(adapter, handshake, $0) },
             cleanup: { installation_proxy_client_free($0) }
         ) { client in
             var rawApps: UnsafeMutableRawPointer?
             var count = 0
             if let ffiError = installation_proxy_get_apps(client, nil, nil, 0, &rawApps, &count) {
-                throw consumeFFIError(ffiError, fallback: "获取已安装 App 列表失败")
+                throw consumeFFIError(ffiError, fallback: t("获取已安装 App 列表失败"))
             }
 
             guard let rawApps, count > 0 else { return [] }
@@ -178,7 +178,7 @@ private enum IdeviceBridge {
         if let name = dictionary["CFBundleName"] as? String, !name.isEmpty {
             return name
         }
-        return "未知"
+        return t("未知")
     }
 
     static func appDictionary(
@@ -206,7 +206,7 @@ private enum IdeviceBridge {
 
         guard let adapterHandle = context.adapterHandle,
               let handshakeHandle = context.handshakeHandle else {
-            throw makeError(message: "隧道未连接")
+            throw makeError(message: t("隧道未连接"))
         }
 
         return (adapterHandle, handshakeHandle)
@@ -229,7 +229,7 @@ extension DeviceSession {
                 var installed: UnsafeMutablePointer<InstalledCryptexC>?
                 defer { cryptexd_free_installed_cryptex(installed) }
                 if let ffiError = cryptexd_installed_ddi(adapter, handshake, &installed) {
-                    cryptexQueryError = IdeviceBridge.consumeFFIError(ffiError, fallback: "查询已安装的 DDI cryptex 失败")
+                    cryptexQueryError = IdeviceBridge.consumeFFIError(ffiError, fallback: t("查询已安装的 DDI cryptex 失败"))
                 } else {
                     cryptexQuerySucceeded = true
                     if installed != nil {
@@ -240,15 +240,15 @@ extension DeviceSession {
 
             do {
                 return try IdeviceBridge.withConnectedClient(
-                    fallback: "无法连接映像挂载服务",
-                    missingClientMessage: "映像挂载客户端未能创建",
+                    fallback: t("无法连接映像挂载服务"),
+                    missingClientMessage: t("映像挂载客户端未能创建"),
                     connect: { image_mounter_connect_rsd(adapter, handshake, $0) },
                     cleanup: { image_mounter_free($0) }
                 ) { client in
                     var devices: UnsafeMutablePointer<plist_t?>?
                     var deviceCount = 0
                     if let error = image_mounter_copy_devices(client, &devices, &deviceCount) {
-                        throw IdeviceBridge.consumeFFIError(error, fallback: "获取已挂载设备失败")
+                        throw IdeviceBridge.consumeFFIError(error, fallback: t("获取已挂载设备失败"))
                     }
                     if let devices {
                         for index in 0..<deviceCount {
@@ -273,44 +273,44 @@ extension DeviceSession {
     func installCryptexDDI(from directoryPath: String) throws {
         var assets: OpaquePointer?
         if let ffiError = cryptex1_assets_load(directoryPath, &assets) {
-            throw IdeviceBridge.consumeFFIError(ffiError, fallback: "加载 DDI cryptex 资源失败")
+            throw IdeviceBridge.consumeFFIError(ffiError, fallback: t("加载 DDI cryptex 资源失败"))
         }
 
         guard let assets else {
-            throw IdeviceBridge.makeError(message: "DDI cryptex 资源未能加载")
+            throw IdeviceBridge.makeError(message: t("DDI cryptex 资源未能加载"))
         }
         defer { cryptex1_assets_free(assets) }
 
         try IdeviceBridge.withTunnelHandles(for: self) { adapter, handshake in
             if let ffiError = cryptexd_install_ddi(adapter, handshake, assets, nil) {
-                throw IdeviceBridge.consumeFFIError(ffiError, fallback: "安装 DDI cryptex 失败")
+                throw IdeviceBridge.consumeFFIError(ffiError, fallback: t("安装 DDI cryptex 失败"))
             }
         }
     }
 
     func mountPersonalDDI(withImagePath imagePath: String, trustcachePath: String, manifestPath: String) throws {
-        let imageData = try IdeviceBridge.mappedFileData(atPath: imagePath, description: "开发者磁盘映像")
-        let trustcacheData = try IdeviceBridge.mappedFileData(atPath: trustcachePath, description: "开发者磁盘映像信任缓存")
-        let manifestData = try IdeviceBridge.mappedFileData(atPath: manifestPath, description: "开发者磁盘映像清单")
+        let imageData = try IdeviceBridge.mappedFileData(atPath: imagePath, description: t("开发者磁盘映像"))
+        let trustcacheData = try IdeviceBridge.mappedFileData(atPath: trustcachePath, description: t("开发者磁盘映像信任缓存"))
+        let manifestData = try IdeviceBridge.mappedFileData(atPath: manifestPath, description: t("开发者磁盘映像清单"))
 
         try IdeviceBridge.withTunnelHandles(for: self) { adapter, handshake in
             let uniqueChipID = try IdeviceBridge.withConnectedClient(
-                fallback: "无法连接 lockdownd",
-                missingClientMessage: "lockdownd 客户端未能创建",
+                fallback: t("无法连接 lockdownd"),
+                missingClientMessage: t("lockdownd 客户端未能创建"),
                 connect: { lockdownd_connect_rsd(adapter, handshake, $0) },
                 cleanup: { lockdownd_client_free($0) }
             ) { lockdownClient in
                 var uniqueChipIDPlist: plist_t?
                 if let ffiError = lockdownd_get_value(lockdownClient, "UniqueChipID", nil, &uniqueChipIDPlist) {
-                    throw IdeviceBridge.consumeFFIError(ffiError, fallback: "查询 UniqueChipID 失败")
+                    throw IdeviceBridge.consumeFFIError(ffiError, fallback: t("查询 UniqueChipID 失败"))
                 }
                 defer { plist_free(uniqueChipIDPlist) }
                 return try IdeviceBridge.uint64Value(from: uniqueChipIDPlist, fieldName: "UniqueChipID")
             }
 
             try IdeviceBridge.withConnectedClient(
-                fallback: "无法连接映像挂载服务",
-                missingClientMessage: "映像挂载客户端未能创建",
+                fallback: t("无法连接映像挂载服务"),
+                missingClientMessage: t("映像挂载客户端未能创建"),
                 connect: { image_mounter_connect_rsd(adapter, handshake, $0) },
                 cleanup: { image_mounter_free($0) }
             ) { imageMounterClient in
@@ -335,7 +335,7 @@ extension DeviceSession {
                 }
 
                 if let ffiError {
-                    throw IdeviceBridge.consumeFFIError(ffiError, fallback: "挂载个性化 DDI 失败")
+                    throw IdeviceBridge.consumeFFIError(ffiError, fallback: t("挂载个性化 DDI 失败"))
                 }
             }
         }
@@ -350,9 +350,9 @@ extension DeviceSession {
             var bytes: UnsafeMutablePointer<UInt8>?
             var length = UInt(0)
             if let ffiError = probe_screenshot(adapter, handshake, jpeg ? 1 : 0, &bytes, &length) {
-                throw IdeviceBridge.consumeFFIError(ffiError, fallback: "截屏失败", domain: "agent")
+                throw IdeviceBridge.consumeFFIError(ffiError, fallback: t("截屏失败"), domain: "agent")
             }
-            guard let bytes else { throw IdeviceBridge.makeError(domain: "agent", message: "截屏结果为空") }
+            guard let bytes else { throw IdeviceBridge.makeError(domain: "agent", message: t("截屏结果为空")) }
             defer { idevice_data_free(bytes, length) }
             return Data(bytes: bytes, count: Int(length))
         }
@@ -363,7 +363,7 @@ extension DeviceSession {
         func scale(_ v: CGFloat) -> UInt16 { UInt16(max(0, min(1, v)) * 65535) }
         try IdeviceBridge.withTunnelHandles(for: self) { adapter, handshake in
             if let ffiError = probe_touch(adapter, handshake, scale(from.x), scale(from.y), scale(to.x), scale(to.y)) {
-                throw IdeviceBridge.consumeFFIError(ffiError, fallback: "触摸失败", domain: "agent")
+                throw IdeviceBridge.consumeFFIError(ffiError, fallback: t("触摸失败"), domain: "agent")
             }
         }
     }
@@ -379,7 +379,7 @@ extension DeviceSession {
                 scale(point.y),
                 holdMillis
             ) {
-                throw IdeviceBridge.consumeFFIError(ffiError, fallback: "长按失败", domain: "agent")
+                throw IdeviceBridge.consumeFFIError(ffiError, fallback: t("长按失败"), domain: "agent")
             }
         }
     }
@@ -387,7 +387,7 @@ extension DeviceSession {
     func agentHome() throws {
         try IdeviceBridge.withTunnelHandles(for: self) { adapter, handshake in
             if let ffiError = probe_button(adapter, handshake, 0x0C, 0x40, 80) {
-                throw IdeviceBridge.consumeFFIError(ffiError, fallback: "返回主屏失败", domain: "agent")
+                throw IdeviceBridge.consumeFFIError(ffiError, fallback: t("返回主屏失败"), domain: "agent")
             }
         }
     }
@@ -402,6 +402,7 @@ extension DeviceSession {
     func agentType(_ text: String) throws {
         guard !text.isEmpty else { return }
         if let offender = text.first(where: { !$0.isASCII }) {
+            // l10n:keep model-facing tool result: the pinyin hint is read by the model, not the owner
             throw IdeviceBridge.makeError(
                 domain: "agent",
                 message: """
@@ -413,7 +414,7 @@ extension DeviceSession {
         }
         try IdeviceBridge.withTunnelHandles(for: self) { adapter, handshake in
             if let ffiError = probe_type(adapter, handshake, text) {
-                throw IdeviceBridge.consumeFFIError(ffiError, fallback: "输入失败", domain: "agent")
+                throw IdeviceBridge.consumeFFIError(ffiError, fallback: t("输入失败"), domain: "agent")
             }
         }
     }
@@ -421,8 +422,8 @@ extension DeviceSession {
     func agentLaunch(bundleID: String) throws {
         try IdeviceBridge.withTunnelHandles(for: self) { adapter, handshake in
             try IdeviceBridge.withConnectedClient(
-                fallback: "无法打开 AppService",
-                missingClientMessage: "AppService 客户端未能创建",
+                fallback: t("无法打开 AppService"),
+                missingClientMessage: t("AppService 客户端未能创建"),
                 connect: { app_service_connect_rsd(adapter, handshake, $0) },
                 cleanup: { app_service_free($0) }
             ) { appService in
@@ -430,7 +431,7 @@ extension DeviceSession {
                 let ffiError = app_service_launch_app(appService, bundleID, nil, 0, 0, 0, nil, &response)
                 if let response { app_service_free_launch_response(response) }
                 if let ffiError {
-                    throw IdeviceBridge.consumeFFIError(ffiError, fallback: "启动 \(bundleID) 失败", domain: "agent")
+                    throw IdeviceBridge.consumeFFIError(ffiError, fallback: t("启动 %@ 失败", bundleID), domain: "agent")
                 }
             }
         }

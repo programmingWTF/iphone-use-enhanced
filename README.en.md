@@ -37,10 +37,10 @@ The whole loop runs on the phone. Nothing leaves the device except the calls to 
 | Build & distribution | Build with Xcode on a Mac | **GitHub Actions produces an unsigned IPA and attaches it to GitHub Releases** — no Mac needed |
 | China networking | DDI downloaded from GitHub raw, often stalls | Multi-mirror DDI download (`ghfast.top` / `gh-proxy.com` / raw) with a **live progress card** (speed, ETA, failed mirrors) |
 | Chinese input | ASCII only, non-ASCII silently dropped | **Pinyin entry + candidate bar**, plus a `long_press` tool to open the paste menu as a fallback |
-| UI language | English | **Fully Simplified Chinese**, including Shortcuts intents, system prompt and error copy |
+| UI language | English | **Simplified Chinese by default, with a one-tap English switch in Settings** (system prompt stays in its original language; Shortcuts phrases and system permission prompts follow the system language) |
 | Model replies | Plain text | **Markdown rendering**: headings, bold/italic/strike, task lists, code blocks (language label + copy button), tables, quotes, `$…$` / `$$…$$` math, `\*` escapes |
 | Visual style | System blur | **Liquid Glass** design system: native `glassEffect` on iOS 26, blur fallback on 17.4; purple reserved for three actions |
-| Model access | OpenRouter | Any OpenAI-compatible endpoint, **DeepSeek-friendly** (`deepseek-flash` supports vision + tool calls) |
+| Model access | OpenRouter only | Built-in **OpenRouter / DeepSeek** (DeepSeek is the default, `deepseek-flash` supports vision + tool calls), plus any OpenAI-compatible endpoint |
 | Shortcuts | Launch only | `RunAgentIntent` **returns the result**, plus `Get Last Agent Result` for Siri |
 | Remote use | — | Optional **Cloudflare Worker gateway** (`gateway/`): off by default, device token + explicit approval, documented trust boundary |
 

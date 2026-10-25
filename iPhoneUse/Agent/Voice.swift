@@ -30,7 +30,7 @@ final class VoiceRecorder: ObservableObject {
         guard state == .idle else { return }
         error = nil
         guard await AVAudioApplication.requestRecordPermission() else {
-            error = "请在设置中允许访问麦克风，才能使用语音。"
+            error = t("请在设置中允许访问麦克风，才能使用语音。")
             return
         }
         // Open the TLS connection now so the upload doesn't pay for it.
@@ -73,7 +73,7 @@ final class VoiceRecorder: ObservableObject {
                                                  model: settings.voiceModel, language: settings.voiceLanguage)
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
-            self.error = "转写失败：\(error.localizedDescription)"
+            self.error = t("转写失败：%@", error.localizedDescription)
             return nil
         }
     }
@@ -89,7 +89,7 @@ final class VoiceRecorder: ObservableObject {
                                                onChunk: @escaping @Sendable (Data, Float) -> Void) throws {
         let inputFormat = input.outputFormat(forBus: 0)
         guard let converter = AVAudioConverter(from: inputFormat, to: format) else {
-            throw NSError(domain: "voice", code: 0, userInfo: [NSLocalizedDescriptionKey: "没有麦克风输入。"])
+            throw NSError(domain: "voice", code: 0, userInfo: [NSLocalizedDescriptionKey: t("没有麦克风输入。")])
         }
         input.installTap(onBus: 0, bufferSize: 2048, format: inputFormat) { buffer, _ in
             let capacity = AVAudioFrameCount(Double(buffer.frameLength) * format.sampleRate / inputFormat.sampleRate) + 1

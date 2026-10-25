@@ -56,7 +56,8 @@ final class PhoneAgent: ObservableObject {
         UserDefaults.standard.string(forKey: lastResultKey) ?? ""
     }
     private var activity: Activity<AgentActivityAttributes>?
-    private var activityState = AgentActivityAttributes.ContentState(step: 0, line: "正在启动", running: true)
+    private var activityState = AgentActivityAttributes.ContentState(
+        step: 0, line: t("正在启动"), running: true, language: L10n.current.rawValue)
 
     nonisolated private static let imageWidth: CGFloat = 450
     private static let historyLimit = 50
@@ -85,13 +86,13 @@ final class PhoneAgent: ObservableObject {
             } else {
                 await Connection.shared.connect()
                 if case .failed(let message) = Connection.shared.step {
-                    outcome = "error: 未连接（\(message)）"
+                    outcome = "error: 未连接（\(message)）" // l10n:keep protocol payload
                 } else if let config = settings.config {
                     DeviceSession.shared.startHeartbeat()
                     outcome = await loop(prompt: prompt, config: config) // nonisolated: runs off the main actor
                     DeviceSession.shared.stopHeartbeat()
                 } else {
-                    outcome = "error: 设置无效"
+                    outcome = "error: 设置无效" // l10n:keep protocol payload
                 }
             }
             await say(outcome, as: .assistant, text: outcome.hasPrefix("done: ") ? String(outcome.dropFirst(6)) : outcome)
@@ -117,7 +118,7 @@ final class PhoneAgent: ObservableObject {
     /// Starts a run and resolves once it ends, with the same outcome string it shows in the chat
     /// ("done: …" on success, "error: …" otherwise). Used by the Shortcuts intent.
     func runAndWait(prompt: String) async -> String {
-        guard !isRunning else { return "error: 智能体正在运行" }
+        guard !isRunning else { return "error: 智能体正在运行" } // l10n:keep protocol payload
         return await withCheckedContinuation { continuation in
             finishWaiters.append(continuation)
             run(prompt: prompt)
@@ -190,7 +191,7 @@ final class PhoneAgent: ObservableObject {
         for old in Activity<AgentActivityAttributes>.activities {
             Task { await old.end(nil, dismissalPolicy: .immediate) }
         }
-        activityState = .init(step: 0, line: "正在启动", running: true)
+        activityState = .init(step: 0, line: t("正在启动"), running: true, language: L10n.current.rawValue)
         do {
             activity = try Activity.request(
                 attributes: AgentActivityAttributes(prompt: prompt, startedAt: .now),
@@ -255,14 +256,14 @@ final class PhoneAgent: ObservableObject {
     /// chat layout on the simulator (no device, no LLM).
     func runDemo() {
         isRunning = true
-        entries = [ChatEntry(kind: .user, text: "帮我在星巴克点常喝的那杯咖啡")]
+        entries = [ChatEntry(kind: .user, text: t("帮我在星巴克点常喝的那杯咖啡"))]
         let steps = [
-            ("open_app bundle_id=com.starbucks.mystarbucks", "直接打开星巴克。"),
-            ("tap x=225 y=880", "「点单」标签在底部。"),
-            ("swipe x1=225 x2=225 y1=700 y2=300", "往下翻找最近的订单。"),
-            ("tap x=120 y=410", "有两条最近的订单都符合，需要确认是哪一杯。"),
-            ("tap x=225 y=620", "把选好的饮品加入购物车。"),
-            ("tap x=380 y=900", "去结算。"),
+            ("open_app bundle_id=com.starbucks.mystarbucks", t("直接打开星巴克。")),
+            ("tap x=225 y=880", t("「点单」标签在底部。")),
+            ("swipe x1=225 x2=225 y1=700 y2=300", t("往下翻找最近的订单。")),
+            ("tap x=120 y=410", t("有两条最近的订单都符合，需要确认是哪一杯。")),
+            ("tap x=225 y=620", t("把选好的饮品加入购物车。")),
+            ("tap x=380 y=900", t("去结算。")),
         ]
         task = Task {
             for (i, step) in steps.enumerated() {
@@ -270,14 +271,14 @@ final class PhoneAgent: ObservableObject {
                 if Task.isCancelled { break }
                 await say(step.0, step: i + 1, text: "\(i + 1). \(step.0)", thought: step.1, image: Self.demoShot(i))
                 if i == 3 {
-                    let question = "你最近的订单有：燕麦拿铁（大杯）或冷萃（超大杯）。要哪一个？"
+                    let question = t("你最近的订单有：燕麦拿铁（大杯）或冷萃（超大杯）。要哪一个？")
                     await say("question", as: .assistant, text: question)
                     let answer = await waitForAnswer(question)
                     if Task.isCancelled { break }
                     await say("answer", as: .user, text: answer)
                 }
             }
-            if !Task.isCancelled { await say("done", as: .assistant, text: "已下单，8 分钟后可取。") }
+            if !Task.isCancelled { await say("done", as: .assistant, text: t("已下单，8 分钟后可取。")) }
             isRunning = false
         }
     }
@@ -334,7 +335,7 @@ final class PhoneAgent: ObservableObject {
         do {
             apps = try device.getAllApps()
         } catch {
-            return "error: 隧道不可用：\(error.localizedDescription)"
+            return "error: 隧道不可用：\(error.localizedDescription)" // l10n:keep protocol payload
         }
         let appList = apps.map { "\($0.value): \($0.key)" }.sorted().joined(separator: "\n")
 
@@ -344,13 +345,13 @@ final class PhoneAgent: ObservableObject {
         ]
 
         for step in 1...config.maxSteps {
-            if Task.isCancelled { return "已停止" }
+            if Task.isCancelled { return t("已停止") }
             let t0 = Date()
             let image: (data: Data, size: CGSize)
             do {
                 image = try Self.shrink(device.agentScreenshot(jpeg: false))
             } catch {
-                return "error: 截屏失败：\(error.localizedDescription)"
+                return "error: 截屏失败：\(error.localizedDescription)" // l10n:keep protocol payload
             }
             let tShot = Date().timeIntervalSince(t0)
 
@@ -364,8 +365,8 @@ final class PhoneAgent: ObservableObject {
             do {
                 reply = try await Self.complete(messages: messages, config: config)
             } catch {
-                if Task.isCancelled { return "已停止" }
-                return "error: LLM 调用失败：\(error.localizedDescription)"
+                if Task.isCancelled { return t("已停止") }
+                return "error: LLM 调用失败：\(error.localizedDescription)" // l10n:keep protocol payload
             }
             let tLLM = Date().timeIntervalSince(t0) - tShot
             messages.append(reply)
@@ -374,14 +375,15 @@ final class PhoneAgent: ObservableObject {
                   let function = call["function"] as? [String: Any],
                   let name = function["name"] as? String,
                   let callID = call["id"] as? String else {
-                await say("模型没有返回操作：\(reply["content"] as? String ?? "")")
+                await say(t("模型没有返回操作：%@", reply["content"] as? String ?? ""))
                 messages.append(["role": "user", "content": "Call exactly one tool."])
                 continue
             }
             let args = (function["arguments"] as? String)
                 .flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] } ?? [:]
             let thought = (reply["content"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-            await say(String(format: "%d %@ %@（截图 %.1fs，LLM %.1fs）", step, name, Self.compact(args), tShot, tLLM), step: step,
+            await say(t("%@ %@ %@（截图 %@s，LLM %@s）", String(step), name, Self.compact(args),
+                        String(format: "%.1f", tShot), String(format: "%.1f", tLLM)), step: step,
                       text: "\(step). \(name) \(Self.compact(args))", thought: thought, image: image.data)
 
             if name == "done" {
@@ -391,10 +393,10 @@ final class PhoneAgent: ObservableObject {
             if name == "ask_user_question" {
                 let question = args["question"] as? String ?? ""
                 try? device.agentLaunch(bundleID: Bundle.main.bundleIdentifier ?? "")
-                await say("提问：\(question)", step: step, as: .assistant, text: question)
+                await say(t("提问：%@", question), step: step, as: .assistant, text: question)
                 let answer = await waitForAnswer(question)
-                if Task.isCancelled { return "已停止" }
-                await say("回答：\(answer)", as: .user, text: answer)
+                if Task.isCancelled { return t("已停止") }
+                await say(t("回答：%@", answer), as: .user, text: answer)
                 messages.append(["role": "tool", "tool_call_id": callID, "content": "The user answered: \(answer)"])
                 continue
             }
@@ -409,7 +411,7 @@ final class PhoneAgent: ObservableObject {
             messages.append(["role": "tool", "tool_call_id": callID, "content": result])
             try? await Task.sleep(for: .milliseconds(name == "open_app" ? 2000 : 1000))
         }
-        return "达到 \(config.maxSteps) 步上限，已放弃"
+        return t("达到 %@ 步上限，已放弃", String(config.maxSteps))
     }
 
     nonisolated private static func perform(_ name: String, _ args: [String: Any], imageSize: CGSize, device: DeviceSession) throws {
@@ -523,7 +525,7 @@ final class PhoneAgent: ObservableObject {
         return [
             tool("tap", "Tap a point.", ["x": "x pixel", "y": "y pixel"]),
             tool("long_press", "Press and hold a point (~0.9s). Use it on a text field to open the edit menu "
-                 + "(then tap 粘贴 in the next screenshot) when typing non-ASCII text did not paste.",
+                 + "(then tap 粘贴 in the next screenshot) when typing non-ASCII text did not paste.", // l10n:keep model prompt
                  ["x": "x pixel", "y": "y pixel"]),
             tool("swipe", "Drag from (x1,y1) to (x2,y2); swipe up to scroll down.",
                  ["x1": "start x", "y1": "start y", "x2": "end x", "y2": "end y"]),

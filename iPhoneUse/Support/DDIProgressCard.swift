@@ -13,6 +13,8 @@ struct DDIProgressCard: View {
     /// surface and keeps only the content.
     var embedded = false
 
+    @ObservedObject private var language = LanguageStore.shared
+
     private var center: DDIDownloadCenter { .shared }
 
     var body: some View {
@@ -49,7 +51,7 @@ struct DDIProgressCard: View {
                 .font(.title3)
                 .foregroundStyle(.blue)
             VStack(alignment: .leading, spacing: 2) {
-                Text("正在下载开发者磁盘映像")
+                Text(t("正在下载开发者磁盘映像"))
                     .font(.subheadline.weight(.semibold))
                 Text(subtitle)
                     .font(.caption)
@@ -100,14 +102,14 @@ struct DDIProgressCard: View {
     }
 
     private var sourceText: String {
-        guard center.sourceCount > 1 else { return "来源：\(center.source)" }
-        return "来源：\(center.source)（第 \(center.sourceIndex)/\(center.sourceCount) 个）"
+        guard center.sourceCount > 1 else { return t("来源：%@", center.source) }
+        return t("来源：%@（第 %@/%@ 个）", center.source, String(center.sourceIndex), String(center.sourceCount))
     }
 
     private var subtitle: String {
-        guard center.fileCount > 0 else { return "准备中…" }
-        let name = center.fileName.isEmpty ? "文件" : center.fileName
-        return "\(name) · 第 \(center.fileIndex)/\(center.fileCount) 个"
+        guard center.fileCount > 0 else { return t("准备中…") }
+        let name = center.fileName.isEmpty ? t("文件") : center.fileName
+        return t("%@ · 第 %@/%@ 个", name, String(center.fileIndex), String(center.fileCount))
     }
 
     private var percentText: String {

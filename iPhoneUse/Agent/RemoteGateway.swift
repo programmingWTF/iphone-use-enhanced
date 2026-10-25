@@ -17,7 +17,7 @@ final class RemoteGateway: ObservableObject {
     @Published var address: String { didSet { UserDefaults.standard.set(address, forKey: "remote.address"); reconfigure() } }
     @Published var token: String { didSet { Keychain.set(token, for: "remote.deviceToken"); reconfigure() } }
     @Published private(set) var automaticallyApprove: Bool
-    @Published private(set) var status = "已关闭"
+    @Published private(set) var status = t("已关闭")
     @Published private(set) var pending: RemoteRequest?
 
     private var foreground = false
@@ -44,7 +44,7 @@ final class RemoteGateway: ObservableObject {
         automaticallyApprove = UserDefaults.standard.bool(forKey: "remote.automaticallyApprove")
         // A process restart must report an interrupted task, never replay phone operations.
         if let id = UserDefaults.standard.string(forKey: "remote.activeID") {
-            finished = (id, UserDefaults.standard.string(forKey: "remote.result") ?? "error: 应用重启，任务已中断")
+            finished = (id, UserDefaults.standard.string(forKey: "remote.result") ?? "error: 应用重启，任务已中断") // l10n:keep protocol payload
         }
         runObserver = PhoneAgent.shared.$isRunning.dropFirst().sink { [weak self] _ in
             Task { @MainActor in self?.agentStateChanged() }
@@ -55,9 +55,9 @@ final class RemoteGateway: ObservableObject {
         let value = address.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: value), url.scheme?.lowercased() == "https", url.host != nil,
               url.user == nil, url.password == nil, url.query == nil, url.fragment == nil else {
-            return "请填写 HTTPS 网关网址，不要附带令牌或查询参数"
+            return t("请填写 HTTPS 网关网址，不要附带令牌或查询参数")
         }
-        if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "请填写网关的设备令牌" }
+        if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return t("请填写网关的设备令牌") }
         return nil
     }
 
@@ -88,8 +88,8 @@ final class RemoteGateway: ObservableObject {
     }
 
     private func refreshConnection() {
-        guard enabled || runningID != nil || awaitingExecution != nil || finished != nil else { disconnect(); status = "已关闭"; return }
-        guard foreground || runningID != nil || awaitingExecution != nil || finished != nil else { disconnect(); status = "后台不接收新任务"; return }
+        guard enabled || runningID != nil || awaitingExecution != nil || finished != nil else { disconnect(); status = t("已关闭"); return }
+        guard foreground || runningID != nil || awaitingExecution != nil || finished != nil else { disconnect(); status = t("后台不接收新任务"); return }
         guard let problem = configurationProblem else {
             if socket == nil { connect() }
             return
@@ -110,7 +110,7 @@ final class RemoteGateway: ObservableObject {
         socket = connection
         ready = false
         lastAcknowledgement = .now
-        status = "正在连接网关…"
+        status = t("正在连接网关…")
         connection.resume()
         receiveTask = Task { [weak self] in
             do {
@@ -155,9 +155,9 @@ final class RemoteGateway: ObservableObject {
         // An approval without the server's execute acknowledgement must not run later.
         if let id = awaitingExecution {
             awaitingExecution = nil
-            saveFinished(id: id, result: "error: 确认连接中断，任务未启动")
+            saveFinished(id: id, result: "error: 确认连接中断，任务未启动") // l10n:keep protocol payload
         }
-        status = "连接断开，正在重试…"
+        status = t("连接断开，正在重试…")
         reconnectTask?.cancel()
         reconnectTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(3))
@@ -195,11 +195,11 @@ final class RemoteGateway: ObservableObject {
             ready = true; lastAcknowledgement = .now; sendFinished(); sendStatus()
         case "status_ack":
             lastAcknowledgement = .now
-            if PhoneAgent.shared.isRunning { status = "正在执行任务" }
-            else if pending != nil { status = "等待你确认任务" }
-            else if awaitingExecution != nil { status = "正在确认执行" }
-            else if finished != nil { status = "正在回传结果" }
-            else { status = foreground ? "已连接，前台可接收任务" : "后台不接收新任务" }
+            if PhoneAgent.shared.isRunning { status = t("正在执行任务") }
+            else if pending != nil { status = t("等待你确认任务") }
+            else if awaitingExecution != nil { status = t("正在确认执行") }
+            else if finished != nil { status = t("正在回传结果") }
+            else { status = foreground ? t("已连接，前台可接收任务") : t("后台不接收新任务") }
         case "task", "execute":
             guard let body = value["task"], let taskData = try? JSONSerialization.data(withJSONObject: body),
                   let request = try? JSONDecoder().decode(RemoteRequest.self, from: taskData) else { return }
@@ -247,7 +247,7 @@ final class RemoteGateway: ObservableObject {
     func decline() {
         guard let request = pending else { return }
         clearApproval()
-        saveFinished(id: request.id, result: "rejected: 用户拒绝了任务")
+        saveFinished(id: request.id, result: "rejected: 用户拒绝了任务") // l10n:keep protocol payload
         send(["type": "decision", "id": request.id, "accepted": false])
         sendFinished()
         sendStatus()
@@ -265,7 +265,7 @@ final class RemoteGateway: ObservableObject {
             try? await Task.sleep(for: .seconds(15))
             guard !Task.isCancelled, let self, self.awaitingExecution == request.id else { return }
             self.awaitingExecution = nil
-            self.saveFinished(id: request.id, result: "error: 网关确认超时，任务未启动")
+            self.saveFinished(id: request.id, result: "error: 网关确认超时，任务未启动") // l10n:keep protocol payload
             self.sendFinished(); self.sendStatus()
         }
     }
@@ -275,7 +275,7 @@ final class RemoteGateway: ObservableObject {
         expiryTask?.cancel(); expiryTask = nil
         awaitingExecution = nil
         guard foreground, enabled, !PhoneAgent.shared.isRunning else {
-            saveFinished(id: request.id, result: "error: 设备当前无法执行"); sendFinished(); return
+            saveFinished(id: request.id, result: "error: 设备当前无法执行"); sendFinished(); return // l10n:keep protocol payload
         }
         runningID = request.id
         Task { [weak self] in
@@ -320,24 +320,25 @@ final class RemoteGateway: ObservableObject {
 private struct RemoteApprovalView: View {
     @ObservedObject var gateway: RemoteGateway
     let request: RemoteRequest
+    @ObservedObject private var language = LanguageStore.shared
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        Label("\(request.agent) 请求使用这台 iPhone", systemImage: "network")
+                        Label(t("%@ 请求使用这台 iPhone", request.agent), systemImage: "network")
                             .font(.headline)
                         Text(request.prompt).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
-                        Text("仅在你同意后执行。此请求会自动过期。")
+                        Text(t("仅在你同意后执行。此请求会自动过期。"))
                             .font(.footnote).foregroundStyle(.secondary)
                     }.padding()
                 }
                 HStack(spacing: 16) {
-                    Button("拒绝", role: .cancel) { gateway.decline() }.buttonStyle(.bordered)
-                    Button("同意并执行") { gateway.approve() }.buttonStyle(.borderedProminent)
+                    Button(t("拒绝"), role: .cancel) { gateway.decline() }.buttonStyle(.bordered)
+                    Button(t("同意并执行")) { gateway.approve() }.buttonStyle(.borderedProminent)
                 }.padding(.bottom)
             }
-            .navigationTitle("远程任务确认")
+            .navigationTitle(t("远程任务确认"))
             .navigationBarTitleDisplayMode(.inline)
         }
     }

@@ -39,7 +39,7 @@ struct AgentShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: RunAgentIntent(),
             phrases: [
-                "运行 \(.applicationName) Agent",
+                "运行 \(.applicationName) Agent", // l10n:keep Siri phrase follows the system language, not the in-app switch
                 "问问 \(.applicationName)",
             ],
             shortTitle: "Run Agent",

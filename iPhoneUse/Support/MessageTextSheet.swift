@@ -16,6 +16,7 @@ struct MessageTextSheet: View {
     let isMarkdown: Bool
 
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var language = LanguageStore.shared
     @State private var copied = false
 
     var body: some View {
@@ -35,15 +36,15 @@ struct MessageTextSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .navigationTitle("消息全文")
+            .navigationTitle(t("消息全文"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(copied ? "已复制" : "复制") { copy() }
+                    Button(copied ? t("已复制") : t("复制")) { copy() }
                         .disabled(copied)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }
+                    Button(t("完成")) { dismiss() }
                 }
             }
         }

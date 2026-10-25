@@ -142,6 +142,8 @@ private struct MarkdownCodeBlock: View {
     let code: String
     let selectable: Bool
 
+    // Named differently from the fence language above, which is already called `language`.
+    @ObservedObject private var languageStore = LanguageStore.shared
     @State private var copied = false
 
     var body: some View {
@@ -161,7 +163,7 @@ private struct MarkdownCodeBlock: View {
                         withAnimation(.easeOut(duration: 0.15)) { copied = false }
                     }
                 } label: {
-                    Label(copied ? "已复制" : "复制", systemImage: copied ? "checkmark" : "doc.on.doc")
+                    Label(copied ? t("已复制") : t("复制"), systemImage: copied ? "checkmark" : "doc.on.doc")
                         .font(.caption2)
                         .foregroundStyle(copied ? Color.accentColor : Color.secondary)
                         .padding(.horizontal, 8)
@@ -169,7 +171,7 @@ private struct MarkdownCodeBlock: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(copied ? "已复制代码" : "复制代码")
+                .accessibilityLabel(copied ? t("已复制代码") : t("复制代码"))
             }
             .padding(.top, 6)
             .padding(.horizontal, 8)
