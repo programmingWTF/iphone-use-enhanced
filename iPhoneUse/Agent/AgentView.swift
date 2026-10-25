@@ -523,14 +523,18 @@ private struct ChatRow: View {
     var body: some View {
         switch entry.kind {
         case .user:
-            // Purple, the same hue family as the send button: "from me" reads at a glance,
-            // but at the softer weight — a paragraph of text does not need the button's
-            // saturation.
+            // 和三个紫色按钮完全相同的一块紫：同一个 hue、同一个 0.62、同一层实底、
+            // 同一层玻璃。文字用白色，饱和度这么高的底上深色字反而糊。
             VStack(alignment: .trailing, spacing: 6) {
                 Text(entry.text)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .glassSurface(GlassTint.purpleSoft, cornerRadius: 20)
+                    .background {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(GlassTint.purple)
+                    }
+                    .glassSurface(GlassTint.purple, cornerRadius: 20)
                     .contextMenu {
                         Button { copyText() } label: {
                             Label("复制", systemImage: "doc.on.doc")
