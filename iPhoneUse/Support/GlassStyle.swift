@@ -75,6 +75,22 @@ extension View {
         modifier(GlassSurface(tint: tint, shape: shape, weight: weight, interactive: interactive))
     }
 
+    /// The composer's surface: the thinnest glass the system will draw, with refraction.
+    ///
+    /// `Glass.regular` bends what is behind it instead of fogging it, and it stays
+    /// see-through — the point of the field is that you can still read the page under it
+    /// while typing. Before iOS 26 there is no glass API, so a thin material stands in.
+    @ViewBuilder
+    func composerGlass(cornerRadius: CGFloat = 26) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if #available(iOS 26, *) {
+            glassEffect(.regular, in: shape)
+        } else {
+            background(shape.fill(.ultraThinMaterial))
+                .overlay(shape.strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+        }
+    }
+
     /// Capsule glass for pills, chips and floating round buttons.
     ///
     /// A coloured capsule gets the same solid base coat as `glassCircle`, so the drawer's
