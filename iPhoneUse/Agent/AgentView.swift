@@ -21,8 +21,6 @@ struct AgentView: View {
     @State private var menuOpen = false
     @State private var drag: CGFloat = 0
     @State private var carousels = CarouselFrames()
-    /// 真实屏幕底部安全区（home indicator 那条带子的高度），量出来给抽屉把列表撑到屏幕边缘用。
-    @State private var bottomInset: CGFloat = 0
     @State private var showSettings = false
     @State private var showShortcutsGuide = false
 
@@ -33,7 +31,11 @@ struct AgentView: View {
             ZStack(alignment: .leading) {
                 ChatList(agent: agent, width: menuWidth, openRun: openRun, select: select,
                          reuse: { prompt = $0; select(nil) }, needsSetup: needsSetup, openSettings: { showSettings = true },
-                         openShortcutsGuide: { showShortcutsGuide = true }, bottomInset: bottomInset)
+                         openShortcutsGuide: { showShortcutsGuide = true }, bottomInset: geo.safeAreaInsets.bottom)
+                    // Give the drawer a real viewport down to the display edge. Keep its
+                    // layout slot unchanged so the chat and drawer gestures don't move.
+                    .frame(height: geo.size.height + geo.safeAreaInsets.bottom, alignment: .top)
+                    .frame(height: geo.size.height, alignment: .top)
                     .accessibilityHidden(!menuOpen)
                 // The mask reaches the screen edges, so the rounded corners follow the
                 // display's instead of clipping the toolbar buttons.
@@ -46,12 +48,6 @@ struct AgentView: View {
                         if menuOpen { Color.black.opacity(0.001).onTapGesture { setMenu(false) } }
                     }
                     .offset(x: offset)
-            }
-            .background {
-                GeometryReader { probe in
-                    Color.clear.onAppear { bottomInset = probe.safeAreaInsets.bottom }
-                }
-                .ignoresSafeArea()
             }
             .simultaneousGesture(
                 DragGesture(minimumDistance: 20, coordinateSpace: .global)
@@ -449,16 +445,13 @@ private struct ChatList: View {
             .overlay {
                 if agent.history.isEmpty { Text("还没有会话").foregroundStyle(.secondary) }
             }
-            // 抽屉自己坐在安全区里，滚动区默认也就到 home indicator 上方为止，文字会在这里
-            // 被切掉。`.ignoresSafeArea` 在这个层级不起作用（父视图已经按安全区缩过了），
-            // 所以改用负的下外边距把滚动区往下撑出 bottomInset，让它的边界真的落到屏幕
-            // 边缘：文字一直滚到屏幕外才消失，中间那条安全区也不会再留白。
-            .padding(.bottom, -bottomInset)
-            // 底部留出两个悬浮按钮的高度，最后一条才滚得到按钮上面来。
-            .contentMargins(.bottom, 92, for: .scrollContent)
+            // Only the content gets clearance for the floating controls. The viewport
+            // itself reaches the display edge, with no white band or system edge fade.
+            .hidingBottomScrollEdgeEffect()
+            .contentMargins(.bottom, 92 + bottomInset, for: .scrollContent)
         }
-        // 按钮挂在整块抽屉上，不挂在滚动区上——滚动区已经 ignore 了底部安全区，按钮要是跟着
-        // 它走就会掉进 home indicator 那条带子里。
+        // Keep the controls at their original safe-area position while rows scroll
+        // behind them, like the ChatGPT drawer.
         .overlay(alignment: .bottom) {
             HStack {
                 // 和右上角的新会话圆钮、输入框的发送键同一个紫色、同一层实底，
@@ -485,9 +478,9 @@ private struct ChatList: View {
                 .accessibilityLabel(needsSetup ? "设置，需先完成配置" : "设置")
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 8)
+            .padding(.bottom, bottomInset + 16)
         }
-        .padding(.vertical, 8)
+        .padding(.top, 8)
         .frame(width: width, alignment: .leading)
     }
 
@@ -916,6 +909,15 @@ private struct ConnectionStatus: View {
 }
 
 private extension View {
+    @ViewBuilder
+    func hidingBottomScrollEdgeEffect() -> some View {
+        if #available(iOS 26, *) {
+            scrollEdgeEffectHidden(true, for: .bottom)
+        } else {
+            self
+        }
+    }
+
     /// Turns off the automatic scroll edge effect above a scroll view.
     ///
     /// iOS 26 fades and blurs scrolling content where it slides under a bar — that is the
