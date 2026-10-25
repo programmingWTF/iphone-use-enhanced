@@ -257,22 +257,17 @@ struct GlassCard<Content: View>: View {
 }
 
 /// A form-like group: an optional title, a glass card of rows, and a footer.
-///
-/// `icon` puts a symbol in front of the title, for a heading that should read as a
-/// landmark rather than a caption (the language switch does: its title stays bilingual).
 struct GlassSection<Content: View, Footer: View>: View {
     private let title: String?
-    private let icon: String?
     private let tint: Color?
     private let weight: GlassWeight
     private let content: Content
     private let footer: Footer
 
-    init(_ title: String? = nil, icon: String? = nil, tint: Color? = nil, weight: GlassWeight = .standard,
+    init(_ title: String? = nil, tint: Color? = nil, weight: GlassWeight = .standard,
          @ViewBuilder content: () -> Content,
          @ViewBuilder footer: () -> Footer) {
         self.title = title
-        self.icon = icon
         self.tint = tint
         self.weight = weight
         self.content = content()
@@ -282,13 +277,10 @@ struct GlassSection<Content: View, Footer: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let title {
-                HStack(spacing: 5) {
-                    if let icon { Image(systemName: icon) }
-                    Text(title)
-                }
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 4)
+                Text(title)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
             }
             GlassCard(tint: tint, weight: weight, padding: 0) { content }
             footer
@@ -300,9 +292,9 @@ struct GlassSection<Content: View, Footer: View>: View {
 }
 
 extension GlassSection where Footer == EmptyView {
-    init(_ title: String? = nil, icon: String? = nil, tint: Color? = nil, weight: GlassWeight = .standard,
+    init(_ title: String? = nil, tint: Color? = nil, weight: GlassWeight = .standard,
          @ViewBuilder content: () -> Content) {
-        self.init(title, icon: icon, tint: tint, weight: weight, content: content, footer: { EmptyView() })
+        self.init(title, tint: tint, weight: weight, content: content, footer: { EmptyView() })
     }
 }
 
