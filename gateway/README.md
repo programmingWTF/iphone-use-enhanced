@@ -28,7 +28,10 @@ include a reverse-proxy path prefix; it must not contain query parameters.
 
 ## Agent API
 
-All API calls require `Authorization: Bearer <agent-key>`. The device uses a
+All API calls require `Authorization: Bearer <agent-key>`. Send a descriptive
+`User-Agent`, such as `iphone-use-agent/1.0`, for compatibility with edge security
+filters (generic Python client user agents may be blocked before the Worker).
+The device uses a
 different key for its WebSocket connection. Agent names are assigned by the
 gateway configuration, not trusted from the request body.
 

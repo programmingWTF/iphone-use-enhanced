@@ -95,6 +95,7 @@ final class RemoteGateway: ObservableObject {
             .split(separator: "/").map(String.init).reduce("") { $0 + "/" + $1 } + "/v1/device/connect"
         guard let url = components.url else { return }
         var request = URLRequest(url: url)
+        request.setValue("iphone-use-app/1.0", forHTTPHeaderField: "User-Agent")
         request.setValue("Bearer \(token.trimmingCharacters(in: .whitespacesAndNewlines))", forHTTPHeaderField: "Authorization")
         let connection = URLSession.shared.webSocketTask(with: request)
         socket = connection
@@ -185,7 +186,11 @@ final class RemoteGateway: ObservableObject {
             ready = true; lastAcknowledgement = .now; sendFinished(); sendStatus()
         case "status_ack":
             lastAcknowledgement = .now
-            status = PhoneAgent.shared.isRunning ? "正在执行任务" : (foreground ? "已连接，前台可接收任务" : "后台不接收新任务")
+            if PhoneAgent.shared.isRunning { status = "正在执行任务" }
+            else if pending != nil { status = "等待你确认任务" }
+            else if awaitingExecution != nil { status = "正在确认执行" }
+            else if finished != nil { status = "正在回传结果" }
+            else { status = foreground ? "已连接，前台可接收任务" : "后台不接收新任务" }
         case "task", "execute":
             guard let body = value["task"], let taskData = try? JSONSerialization.data(withJSONObject: body),
                   let request = try? JSONDecoder().decode(RemoteRequest.self, from: taskData) else { return }
