@@ -446,21 +446,6 @@ private struct ChatList: View {
             .ignoresSafeArea(.container, edges: .bottom)
             // 底部留出两个悬浮按钮的高度，最后一条才滚得到按钮上面来。
             .contentMargins(.bottom, 92, for: .scrollContent)
-            // 底边不再硬切：最后几行在接近屏幕底边时渐隐进背景色。没有这层，文字会从屏幕
-            // 边缘被生生切掉半行，还会穿过下面两个按钮，看着像按钮压着字。
-            .overlay(alignment: .bottom) {
-                LinearGradient(
-                    stops: [
-                        .init(color: Color(.systemBackground).opacity(0), location: 0),
-                        .init(color: Color(.systemBackground).opacity(0.80), location: 0.45),
-                        .init(color: Color(.systemBackground), location: 0.78)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 150)
-                .allowsHitTesting(false)
-            }
         }
         // 按钮挂在整块抽屉上，不挂在滚动区上——滚动区已经 ignore 了底部安全区，按钮要是跟着
         // 它走就会掉进 home indicator 那条带子里。
