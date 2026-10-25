@@ -21,6 +21,8 @@ struct AgentView: View {
     @State private var menuOpen = false
     @State private var drag: CGFloat = 0
     @State private var carousels = CarouselFrames()
+    /// 真实屏幕底部安全区（home indicator 那条带子的高度），量出来给抽屉把列表撑到屏幕边缘用。
+    @State private var bottomInset: CGFloat = 0
     @State private var showSettings = false
     @State private var showShortcutsGuide = false
 
@@ -31,7 +33,7 @@ struct AgentView: View {
             ZStack(alignment: .leading) {
                 ChatList(agent: agent, width: menuWidth, openRun: openRun, select: select,
                          reuse: { prompt = $0; select(nil) }, needsSetup: needsSetup, openSettings: { showSettings = true },
-                         openShortcutsGuide: { showShortcutsGuide = true })
+                         openShortcutsGuide: { showShortcutsGuide = true }, bottomInset: bottomInset)
                     .accessibilityHidden(!menuOpen)
                 // The mask reaches the screen edges, so the rounded corners follow the
                 // display's instead of clipping the toolbar buttons.
@@ -44,6 +46,12 @@ struct AgentView: View {
                         if menuOpen { Color.black.opacity(0.001).onTapGesture { setMenu(false) } }
                     }
                     .offset(x: offset)
+            }
+            .background {
+                GeometryReader { probe in
+                    Color.clear.onAppear { bottomInset = probe.safeAreaInsets.bottom }
+                }
+                .ignoresSafeArea()
             }
             .simultaneousGesture(
                 DragGesture(minimumDistance: 20, coordinateSpace: .global)
@@ -410,6 +418,7 @@ private struct ChatList: View {
     let needsSetup: Bool
     let openSettings: () -> Void
     let openShortcutsGuide: () -> Void
+    let bottomInset: CGFloat
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -440,10 +449,11 @@ private struct ChatList: View {
             .overlay {
                 if agent.history.isEmpty { Text("还没有会话").foregroundStyle(.secondary) }
             }
-            // 列表要能一直滚到「物理屏幕底边」才消失：不 ignore 底部安全区的话，滚动区会在
-            // home indicator 上方 34pt 处被切掉，底下那条就是抽屉的背景色，看着像有块东西
-            // 压住了最后几行。ignore 之后最后几行直接从屏幕边缘滑出去。
-            .ignoresSafeArea(.container, edges: .bottom)
+            // 抽屉自己坐在安全区里，滚动区默认也就到 home indicator 上方为止，文字会在这里
+            // 被切掉。`.ignoresSafeArea` 在这个层级不起作用（父视图已经按安全区缩过了），
+            // 所以改用负的下外边距把滚动区往下撑出 bottomInset，让它的边界真的落到屏幕
+            // 边缘：文字一直滚到屏幕外才消失，中间那条安全区也不会再留白。
+            .padding(.bottom, -bottomInset)
             // 底部留出两个悬浮按钮的高度，最后一条才滚得到按钮上面来。
             .contentMargins(.bottom, 92, for: .scrollContent)
         }
