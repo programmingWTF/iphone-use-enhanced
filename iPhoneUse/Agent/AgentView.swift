@@ -162,6 +162,9 @@ struct AgentView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            // 聊天页不要导航栏那层半透明遮挡：内容直接滚到状态栏底下，顶上只留两个按钮。
+            // 设置页是另一个推入的栈，仍然保留系统默认的栏背景。
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("会话列表", systemImage: "line.3.horizontal") { setMenu(true) }
@@ -180,6 +183,7 @@ struct AgentView: View {
                     Button { select(nil) } label: {
                         Image(systemName: "square.and.pencil")
                             .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
                             .glassCircle(GlassTint.purple)
                     }
                     .buttonStyle(.haptic(.plain))
@@ -280,11 +284,11 @@ struct AgentView: View {
             if composerEnabled {
                 MicButton(voice: voice, enabled: llm.voiceAvailable) { finishVoice(send: false) }
             }
-            // The same purple glass as the user's own bubble.
+            // 和右上角、抽屉里那两个按钮同一个紫色实底；箭头用白色才压得住饱和度。
             Button(action: send) {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(canSend ? Color.primary : Color.secondary)
+                    .foregroundStyle(canSend ? Color.white : Color.secondary)
                     .glassCircle(canSend ? GlassTint.purple : nil)
             }
             .disabled(!canSend)
@@ -295,8 +299,16 @@ struct AgentView: View {
         .padding(.leading, 8)
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .onTapGesture { composerFocused = true }
-        // Plain glass: only the send button carries the purple.
-        .glassSurface(cornerRadius: 26)
+        // 参考 ChatGPT：输入框是一块安静的实底，不是能看见聊天内容的玻璃。多行文字
+        // 在玻璃上会和背后的消息叠在一起，读不清；实底 + 一圈细边就够了。
+        .background {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
+        }
         .sensoryFeedback(.start, trigger: voice.state) { _, new in new == .recording }
         .sensoryFeedback(.stop, trigger: voice.state) { old, _ in old == .recording }
         .sensoryFeedback(.error, trigger: voice.error) { _, new in new != nil }
@@ -429,48 +441,56 @@ private struct ChatList: View {
             .overlay {
                 if agent.history.isEmpty { Text("还没有会话").foregroundStyle(.secondary) }
             }
-            // Capsule, not a rounded rectangle: the row is one line, and the ends should
-            // be fully round like the rest of the floating controls.
-            Button(action: openShortcutsGuide) {
+            // 底部这一组按钮，参考 ChatGPT 的抽屉：一整条不透明底，列表在上面就被切
+            // 干净了。之前是浮着的玻璃胶囊，最后一行会话会从玻璃底下透出来，看着像被
+            // 挡住。现在按钮本身也是实底（快捷指令是次一级灰，新会话是实紫），不再有
+            // 任何东西透上来。
+            VStack(spacing: 12) {
+                Button(action: openShortcutsGuide) {
+                    HStack {
+                        Label("接入快捷指令与深链", systemImage: "link")
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.haptic(.plain))
+                .background(Color(.secondarySystemBackground), in: Capsule())
+                .overlay { Capsule().strokeBorder(Color.primary.opacity(0.10), lineWidth: 1) }
+                // 与下面那排（「对话」+ 齿轮）同一个 20pt 内边距：三者的左右两端要齐平，
+                // 否则这一条会比下面两个按钮各宽 12pt，看着「长了一点点」。
+                .padding(.horizontal, 20)
                 HStack {
-                    Label("接入快捷指令与深链", systemImage: "link")
+                    // 和右上角的新会话圆钮、输入框的发送键同一个紫色、同一层实底，
+                    // 三个按钮看起来是同一个东西，而不是三种紫。
+                    Button { select(nil) } label: {
+                        Label("对话", systemImage: "square.and.pencil")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 22)
+                            .frame(height: GlassMetrics.circle)
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.haptic(.plain))
+                    .glassPill(GlassTint.purple, interactive: true)
                     Spacer()
-                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                    Button(action: openSettings) {
+                        Image(systemName: "gearshape")
+                            .font(.title3)
+                            .foregroundStyle(.primary)
+                            .glassCircle()
+                            .overlay(alignment: .topTrailing) { if needsSetup { BadgeDot().padding(6) } }
+                    }
+                    .buttonStyle(.haptic(.plain))
+                    .accessibilityLabel(needsSetup ? "设置，需先完成配置" : "设置")
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .contentShape(Rectangle())
+                .padding(.horizontal, 20)
             }
-            .buttonStyle(.haptic(.plain))
-            .glassPill(nil, interactive: true)
-            // 与下面那排（「对话」+ 齿轮）同一个 20pt 内边距：三者的左右两端要齐平，
-            // 否则这一条会比下面两个按钮各宽 12pt，看着「长了一点点」。
-            .padding(.horizontal, 20)
-            HStack {
-                // Purple, the same hue as the send button and the toolbar circle, at the
-                // same 44pt height as the round Settings button beside it, so the row sits
-                // level instead of reading like a thin tag.
-                Button { select(nil) } label: {
-                    Label("对话", systemImage: "square.and.pencil")
-                        .font(.headline)
-                        .padding(.horizontal, 22)
-                        .frame(height: GlassMetrics.circle)
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.haptic(.plain))
-                .glassPill(GlassTint.purple, interactive: true)
-                Spacer()
-                Button(action: openSettings) {
-                    Image(systemName: "gearshape")
-                        .font(.title3)
-                        .foregroundStyle(.primary)
-                        .glassCircle()
-                        .overlay(alignment: .topTrailing) { if needsSetup { BadgeDot().padding(6) } }
-                }
-                .buttonStyle(.haptic(.plain))
-                .accessibilityLabel(needsSetup ? "设置，需先完成配置" : "设置")
-            }
-            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .padding(.bottom, 2)
+            .background(Color(.systemBackground))
         }
         .padding(.vertical, 8)
         .frame(width: width, alignment: .leading)
@@ -511,7 +531,7 @@ private struct ChatList: View {
         }
         .padding(20)
         .frame(width: max(width - 24, 0), alignment: .leading)
-        .glassSurface(GlassTint.purple, in: shape)
+        .glassSurface(GlassTint.purpleSoft, in: shape)
         .glassOutline(GlassTint.purple, in: shape)
     }
 }
@@ -525,12 +545,14 @@ private struct ChatRow: View {
     var body: some View {
         switch entry.kind {
         case .user:
-            // Purple glass, the same hue as the send button: "from me" reads at a glance.
+            // Purple, the same hue family as the send button: "from me" reads at a glance,
+            // but at the softer weight — a paragraph of text does not need the button's
+            // saturation.
             VStack(alignment: .trailing, spacing: 6) {
                 Text(entry.text)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .glassSurface(GlassTint.purple, cornerRadius: 20)
+                    .glassSurface(GlassTint.purpleSoft, cornerRadius: 20)
                     .contextMenu {
                         Button { copyText() } label: {
                             Label("复制", systemImage: "doc.on.doc")

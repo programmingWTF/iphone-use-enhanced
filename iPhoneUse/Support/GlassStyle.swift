@@ -17,7 +17,12 @@ enum GlassTint {
     /// The connection status card while a connection is being made.
     static let blue = Color.blue.opacity(0.22)
     /// "From me", and everything that starts a new session: the one hue that means you.
-    static let purple = Color.purple.opacity(0.32)
+    /// Saturated on purpose: the three purple controls (toolbar circle, drawer pill,
+    /// send) all use this same value, so nobody reads them as three different purples.
+    static let purple = Color(uiColor: .systemPurple).opacity(0.62)
+    /// A quieter purple for large surfaces (the chat bubble, the lifted history card):
+    /// the buttons need to shout, a paragraph of text does not.
+    static let purpleSoft = Color(uiColor: .systemPurple).opacity(0.34)
     /// The connection status card, connected.
     static let success = Color.green.opacity(0.34)
     /// The connection status card, failed or not connected yet.
@@ -71,10 +76,19 @@ extension View {
     }
 
     /// Capsule glass for pills, chips and floating round buttons.
+    ///
+    /// A coloured capsule gets the same solid base coat as `glassCircle`, so the drawer's
+    /// "new chat" pill and the toolbar's round button are the same purple at the same
+    /// weight — before this the pill leaned on the tint alone and read as a pale violet.
     func glassPill(_ tint: Color? = nil,
                    weight: GlassWeight = .standard,
                    interactive: Bool = false) -> some View {
-        glassSurface(tint, in: Capsule(), weight: weight, interactive: interactive)
+        background {
+            if let tint = tint {
+                Capsule().fill(tint)
+            }
+        }
+        .glassSurface(tint, in: Capsule(), weight: weight, interactive: interactive)
     }
 
     /// A perfect circle: a fixed square hit area around a circle-shaped surface.
