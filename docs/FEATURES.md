@@ -39,7 +39,8 @@ doesn't need stays out, to keep the code and the binary small.
 - Background keep-alive: silent audio, background location
 - Optional remote API: disabled by default, configurable HTTPS gateway URL and Keychain device token.
   Accepts requests only in the foreground; shows the authenticated agent name and full prompt for
-  approval. One pending/executing task, no queue. See `gateway/README.md` for self-hosting and API usage.
+  approval. A separate automatic-execution toggle defaults off and requires a risk confirmation.
+  One pending/executing task, no queue. See `gateway/README.md` for self-hosting and API usage.
 - Links: pairing file guide, GitHub repo
 - Credits: idevice, LocalDevVPN/StosVPN, esp32-iphone-agent, DeveloperDiskImage
 

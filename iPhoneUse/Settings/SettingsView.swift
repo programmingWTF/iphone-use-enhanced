@@ -27,6 +27,7 @@ struct SettingsView: View {
     @State private var isShowingPairingFilePicker = false
     @State private var pairingMessage: (text: String, isError: Bool)?
     @State private var showClearHistoryConfirmation = false
+    @State private var showAutomaticApprovalConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -112,10 +113,28 @@ struct SettingsView: View {
                             .glassRow()
                             GlassRowDivider()
                             Label(remote.status, systemImage: "antenna.radiowaves.left.and.right")
-                                .font(.footnote).foregroundStyle(.secondary).glassRow()
+                                .font(.footnote)
+                                .foregroundStyle(remote.isAcceptingTasks ? Color.green : Color.secondary)
+                                .glassRow()
+                            GlassRowDivider()
+                            Toggle(isOn: Binding(
+                                get: { remote.automaticallyApprove },
+                                set: { enabled in
+                                    if enabled { showAutomaticApprovalConfirmation = true }
+                                    else { remote.setAutomaticApproval(false) }
+                                }
+                            )) {
+                                HStack(spacing: 12) {
+                                    GlassRowIcon(name: "exclamationmark.shield", tint: .red)
+                                    Text("允许Agent自动调用，无需我审批")
+                                        .foregroundStyle(.red)
+                                }
+                            }
+                            .tint(.red)
+                            .glassRow()
                         }
                     } footer: {
-                        Text("仅在前台接收任务，每次执行前由你确认。同时只处理一个任务，不建立待办队列。设备令牌由网关管理员提供，与模型 API 密钥不同。")
+                        Text("仅在前台接收任务，默认每次执行前由你确认。开启自动调用后将不再逐项审批。同时只处理一个任务，不建立待办队列。设备令牌由网关管理员提供，与模型 API 密钥不同。")
                     }
                     .disabled(remote.configurationLocked)
 
@@ -228,6 +247,12 @@ struct SettingsView: View {
             }
             .navigationTitle("设置")
             .scrollDismissesKeyboard(.interactively)
+        }
+        .alert("允许 Agent 自动调用？", isPresented: $showAutomaticApprovalConfirmation) {
+            Button("取消", role: .cancel) { }
+            Button("确认开启", role: .destructive) { remote.setAutomaticApproval(true) }
+        } message: {
+            Text("开启后，持有调用密钥的 Agent 可在 iPhone Use 处于前台时直接操作这台 iPhone，不再逐项征求你的同意。操作可能涉及发送消息、删除数据或更改设置。请仅在你信任这些 Agent 及其密钥保管方式时开启。你可以关闭此选项，恢复逐项审批。")
         }
         .task { await connection.connect() } // no-op when connected; retries after a failure
         .onChange(of: scenePhase) { _, phase in

@@ -57,7 +57,7 @@ No task or screenshot is logged by the gateway code.
 - `409 device_busy`: one task is awaiting approval/running, or a local run is in progress. Caller coordinates retries; no queue.
 - `503 device_unavailable`: phone is offline, in the background without a run, or its heartbeat is stale.
 - Approvals expire after 120 seconds by default (caller may shorten to 1–120).
-- The phone shows the full prompt and agent name before approval. Leaving the foreground dismisses/rejects a pending approval.
+- By default the phone shows the full prompt and agent name before approval. A separate red automatic-execution setting requires an explicit risk confirmation; it skips per-task approval only while foregrounded. Leaving the foreground dismisses/rejects a pending approval.
 - Approved tasks use the existing PhoneAgent; its normal stop control, result history, and background execution rules apply.
 - Disconnecting does **not** release a running task. The phone persists its task ID and retries result delivery; a process restart reports interruption instead of replaying actions. Reopen the same installation/configuration to reconcile a disconnected task.
 - There is no push notification requirement. The phone must be foregrounded to receive a new request.

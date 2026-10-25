@@ -16,6 +16,7 @@ final class RemoteGateway: ObservableObject {
     @Published var enabled: Bool { didSet { UserDefaults.standard.set(enabled, forKey: "remote.enabled"); reconfigure() } }
     @Published var address: String { didSet { UserDefaults.standard.set(address, forKey: "remote.address"); reconfigure() } }
     @Published var token: String { didSet { Keychain.set(token, for: "remote.deviceToken"); reconfigure() } }
+    @Published private(set) var automaticallyApprove: Bool
     @Published private(set) var status = "已关闭"
     @Published private(set) var pending: RemoteRequest?
 
@@ -29,16 +30,18 @@ final class RemoteGateway: ObservableObject {
     private weak var approvalController: UIViewController?
     @Published private var runningID: String?
     @Published private var awaitingExecution: String?
-    private var ready = false
+    @Published private var ready = false
     private var lastAcknowledgement = Date.now
     @Published private var finished: (id: String, result: String)?
 
     var configurationLocked: Bool { pending != nil || runningID != nil || awaitingExecution != nil || finished != nil }
+    var isAcceptingTasks: Bool { ready && foreground && enabled && !PhoneAgent.shared.isRunning && !configurationLocked }
 
     private init() {
         enabled = UserDefaults.standard.bool(forKey: "remote.enabled")
         address = UserDefaults.standard.string(forKey: "remote.address") ?? ""
         token = Keychain.get("remote.deviceToken") ?? ""
+        automaticallyApprove = UserDefaults.standard.bool(forKey: "remote.automaticallyApprove")
         // A process restart must report an interrupted task, never replay phone operations.
         if let id = UserDefaults.standard.string(forKey: "remote.activeID") {
             finished = (id, UserDefaults.standard.string(forKey: "remote.result") ?? "error: 应用重启，任务已中断")
@@ -63,6 +66,12 @@ final class RemoteGateway: ObservableObject {
         if !active, pending != nil { decline() }
         refreshConnection()
         sendStatus()
+    }
+
+    /// Enabling is called only by the explicit risk confirmation in Settings.
+    func setAutomaticApproval(_ enabled: Bool) {
+        automaticallyApprove = enabled
+        UserDefaults.standard.set(enabled, forKey: "remote.automaticallyApprove")
     }
 
     private func reconfigure() {
@@ -220,6 +229,11 @@ final class RemoteGateway: ObservableObject {
             send(["type": "decision", "id": request.id, "accepted": false]); return
         }
         pending = request
+        if automaticallyApprove {
+            // Reuse the same foreground, expiry and single-task checks as manual approval.
+            approve()
+            return
+        }
         sendStatus()
         presentApproval(request)
         expiryTask = Task { [weak self] in
