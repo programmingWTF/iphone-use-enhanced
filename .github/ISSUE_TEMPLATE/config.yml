@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全问题（私密报告）
+    url: https://github.com/programmingWTF/iphone-use-enhanced/security/advisories/new
+    about: 不要用公开 issue 报告安全漏洞、泄露的凭据或配对文件。
+  - name: 安装与首次配置问题
+    url: https://github.com/programmingWTF/iphone-use-enhanced#首次配置清单
+    about: 配对文件、VPN、开发者模式、DDI 下载，先看 README 的清单。
+  - name: 架构与设计说明
+    url: https://github.com/programmingWTF/iphone-use-enhanced/blob/main/docs/ARCHITECTURE.md
+    about: 想了解隧道、注入、智能体循环是怎么串起来的，先读这里。

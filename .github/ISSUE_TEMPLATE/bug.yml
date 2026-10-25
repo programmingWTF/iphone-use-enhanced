@@ -1,0 +1,95 @@
+name: Bug 报告
+description: 有东西坏了、和预期不符，或者卡在某一步
+title: "[Bug] "
+labels: ["🐛 bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先确认：这是**安装/签名**问题还是**运行**问题？安装问题多半看 README 的「环境要求」和「安装」两节。
+        请不要贴配对文件、证书、API Key 或任何账号信息。
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我搜索过已有 issue，没有重复
+          required: true
+        - label: 我读过了 README 的已知限制
+          required: true
+        - label: 这不是安全问题（安全问题请走私密通道）
+          required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 实际现象 + 期望现象
+      placeholder: |
+        期望：点击任务后开始截图并执行。
+        实际：一直停在「正在连接」。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开 App → 设置 → 导入配对文件
+        2. 选 LocalDevVPN → 重连
+        3. 输入任务「打开设置，打开 Wi-Fi」
+        4. 状态停在……
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本与 commit
+      description: Release 版本号，或你自己构建的 commit
+      placeholder: v0.1.0 / 6caa936
+    validations:
+      required: true
+  - type: dropdown
+    id: signing
+    attributes:
+      label: 签名方式
+      description: 免费号与付费证书能用的能力不一样（内建 VPN 就是其一）
+      options:
+        - 免费 Apple ID（7 天，LocalDevVPN）
+        - 付费开发者证书（内建 VPN）
+        - 其他 / 不确定
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: 机型与 iOS 版本
+      placeholder: iPhone 16 Pro / iOS 27.2
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: 模型与端点
+      description: 只写模型名和接口域名，不要贴 Key
+      placeholder: deepseek-flash @ api.deepseek.com
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图
+      description: |
+        App 会写 `Documents/idevice_log.txt`，可以用「文件」App 导出后贴关键片段。
+        截图请先遮住配对文件路径、账号、Key。
+      render: text
+  - type: dropdown
+    id: area
+    attributes:
+      label: 你判断受影响的模块
+      multiple: true
+      options:
+        - area: app
+        - area: agent
+        - area: device
+        - area: ui
+        - area: ddi
+        - area: gateway
+        - area: ci

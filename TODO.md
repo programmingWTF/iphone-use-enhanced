@@ -1,19 +1,25 @@
-# TODO
+# TODO · 未完成项
 
-Feature scope: `docs/FEATURES.md`. Left over:
+范围定义见 [docs/FEATURES.md](docs/FEATURES.md)。这里只放「已知但还没做」的事，做完就删。
 
-## Verify on a phone
+## 需要真机验证
 
-- [ ] Built-in loopback VPN: "Add VPN Configuration" prompt, then connect to `10.7.0.1` on Wi-Fi.
-      Maintainers report it does NOT work cellular-only on iOS 26.6/27 (LocalDevVPN issue #31).
-      It takes the single VPN slot (stops Tailscale etc. while on); it is left on after a run.
-- [ ] idevice built with `ring` instead of `aws-lc`: pairing/TLS still work.
-- [ ] Heartbeat during agent runs (new, not exercised yet).
-- [ ] Stop button in the Live Activity actually stops the run.
-- [ ] Full LLM run on the 16 Pro (iOS 27); Gemini 3.5 Flash Lite quality
-- [ ] Reboot test and 30 min soak (Notion plan T7/T8)
+- [ ] 内建回环 VPN 在蜂窝下的表现：上游报告 iOS 26.6/27 上蜂窝单卡不可用（LocalDevVPN issue #31），
+      当前只能靠「切换蜂窝数据」快捷指令绕开。
+- [ ] `idevice` 用 `ring` 而不是 `aws-lc` 时，配对与 TLS 是否仍然稳定。
+- [ ] 智能体运行期间的心跳（heartbeat）在长任务下的表现。
+- [ ] Live Activity 上的「停止」是否真能中断当前运行。
+- [ ] 重启后首次运行、以及 30 分钟长跑的内存与电量表现。
+- [ ] iOS 17.x / 18.x 上的回归（工程最低支持 17.4，但只在 26/27 上验证过）。
 
-## Other
+## 体验
 
-- [ ] App icon is a placeholder bolt (`iPhoneUse/AppIcon.icon`).
-- [ ] GitHub link in Settings points to `github.com/EliotAndres/iphone-use-app`, which doesn't exist yet.
+- [ ] App 图标还是占位（`iPhoneUse/AppIcon.icon`）。
+- [ ] 中文输入在自绘输入框 / WebView 里的兜底路径，目前只有 `long_press` +「粘贴」。
+- [ ] 首次安装的一页式引导（目前是设置页里的清单）。
+
+## 工程
+
+- [ ] 给 `gateway/` 补端到端测试（目前是单元测试）。
+- [ ] CI 缓存 `idevice` 编译产物，缩短每次构建时间。
+- [ ] 应用内「导出日志」按钮（现在需要走「文件」App）。

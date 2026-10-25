@@ -1,0 +1,41 @@
+name: 使用问题
+description: 装不上、连不上、跑不通，需要一点帮助
+title: "[Question] "
+labels: ["❓ question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提问前先看 **README → 首次配置清单** 和 **docs/ARCHITECTURE.md**，八成的问题在那里有答案。
+        不要贴配对文件、证书、API Key。
+  - type: textarea
+    id: question
+    attributes:
+      label: 你想解决什么
+      placeholder: |
+        导入配对文件后一直显示「正在连接」，是我的配对文件过期了吗？
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: 已经试过什么
+      placeholder: |
+        - 重装 App
+        - 换成 LocalDevVPN
+        - 重开开发者模式
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: 机型与 iOS 版本
+      placeholder: iPhone 16 Pro / iOS 27.2
+  - type: dropdown
+    id: signing
+    attributes:
+      label: 签名方式
+      options:
+        - 免费 Apple ID（7 天，LocalDevVPN）
+        - 付费开发者证书（内建 VPN）
+        - 其他 / 不确定

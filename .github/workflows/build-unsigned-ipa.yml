@@ -33,6 +33,16 @@ on:
         default: ""
   push:
     branches: [main]
+    # Pushing a v* tag builds the same IPA and publishes it as a GitHub Release.
+    tags: ["v*"]
+
+# Needed to create the Release on a tag push.
+permissions:
+  contents: write
+
+concurrency:
+  group: ipa-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -133,3 +143,44 @@ jobs:
             iphone-use-app-unsigned*.ipa
             sha256.txt
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        # Only for tag pushes: `git tag v0.1.0 && git push origin v0.1.0`
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          # Use the matching CHANGELOG section as the release body when there is one.
+          notes="release-notes.md"
+          if grep -qE "^## \[?${TAG}\]?" CHANGELOG.md; then
+            awk -v tag="$TAG" '
+              $0 ~ ("^## \\[?" tag "\\]?") { capturing = 1; next }
+              capturing && /^## / { exit }
+              capturing { print }
+            ' CHANGELOG.md > "$notes"
+            echo "Using the CHANGELOG section for $TAG"
+          else
+            printf 'Unsigned IPA for %s. Sign it with your own certificate (see README).\n' "$TAG" > "$notes"
+          fi
+
+          # A free Apple ID cannot sign an app whose bundle id belongs to someone else,
+          # nor nested extensions — say so in the release body.
+          {
+            echo ""
+            echo "---"
+            echo ""
+            echo "**Install:** download the IPA, sign it with your own certificate (Sideloadly, i4Tools, ESign, …),"
+            echo "and re-import the pairing file if you had to change the bundle id."
+            echo "Free Apple IDs expire after 7 days; use \`BUILTIN_VPN=NO\` builds together with LocalDevVPN."
+          } >> "$notes"
+
+          gh release create "$TAG" \
+            --title "iPhone Use Enhanced $TAG" \
+            --notes-file "$notes" \
+            iphone-use-app-unsigned*.ipa sha256.txt
+
+          gh release view "$TAG" --json url,assets -q '.url, (.assets[] | "  " + .name + "  " + (.size|tostring) + " bytes")'
+

@@ -1,0 +1,53 @@
+name: 功能建议
+description: 想让它多做点什么，或者现有流程太别扭
+title: "[Feature] "
+labels: ["✨ enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        好的建议从「场景」开始，而不是从「方案」开始：先说你在什么情况下被卡住了。
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 场景
+      description: 你在做什么的时候觉得不方便？
+      placeholder: 每天要让手机打开某个 App 并签到，现在得每一步都盯着它。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你希望它怎么工作
+      placeholder: |
+        希望可以有「定时任务」：每天固定时间跑一次这个提示词，结束后把 summary 发到快捷指令。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 试过的替代方案
+      description: 现在你会怎么绕过这个问题？
+  - type: dropdown
+    id: area
+    attributes:
+      label: 涉及模块
+      multiple: true
+      options:
+        - area: app
+        - area: agent
+        - area: device
+        - area: ui
+        - area: ddi
+        - area: gateway
+        - area: ci
+        - area: docs
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: 范围确认
+      options:
+        - label: 这个能力不需要越狱或注入第三方 dylib
+          required: true
+        - label: 这属于「控制自己的设备」，不是多设备群控 / 自动化营销
+          required: true

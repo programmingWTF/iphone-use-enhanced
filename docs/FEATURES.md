@@ -69,8 +69,23 @@ doesn't need stays out, to keep the code and the binary small.
 - `stikdebug://` / `stikjit://` URL schemes, `.stiktool` document type, `_stikdebug` Bonjour services
   (keep `_remotepairing._tcp`)
 - App Store icon fetcher, localization helper, haptics and accessibility announcer helpers
-- Build-IPA workflow, AltSource update script, issue/PR templates, empty test targets,
-  README screenshots (`assets/`), `info.md`
+- AltSource update script, empty test targets, README screenshots (`assets/`), `info.md`
+
+## Added in this fork
+
+- **Build-IPA workflow**: `.github/workflows/build-unsigned-ipa.yml` builds an unsigned IPA on `xcode-27`
+  and publishes it as a GitHub Release on a `v*` tag (the thing upstream deliberately left out).
+- **China-friendly DDI download**: mirror list (`raw.githubusercontent.com`, `ghfast.top`, `gh-proxy.com`)
+  plus an in-app progress card with speed, ETA and per-mirror failures; files dropped into `Documents/DDI/`
+  are adopted without networking.
+- **Simplified Chinese UI** and a Chinese system prompt, with migration from the old English default.
+- **Markdown + math rendering** for model replies, including task lists, code-block language labels, copy
+  buttons and `\*` escapes.
+- **Liquid Glass** design system with two glass weights and colour reserved for meaningful actions.
+- **Chinese input via pinyin** (plus `long_press` → paste as a fallback), replacing the ASCII-only `type`.
+- **Shortcuts that return a value** (`RunAgent` result, `Get Last Agent Result`).
+- **Optional remote task gateway** (`gateway/` Worker + `RemoteGateway.swift`).
+- **Repo scaffolding**: issue forms, PR template, CODEOWNERS, gateway CI, label taxonomy, bilingual docs.
 
 ## Not doing
 

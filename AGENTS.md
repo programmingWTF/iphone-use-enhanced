@@ -1,54 +1,68 @@
-# iphone-use-app
+# AGENTS.md
 
-An iPhone app where an LLM controls the phone it runs on: type a prompt (or run
-the "Run Agent" Shortcut) and it loops CoreDevice screenshot -> chat completion tool
-call -> CoreDevice tap/swipe/type/open-app until done. No Mac or board at run
-time. Background, design notes and gotchas live in Notion: "Controlling iphone".
+Guidance for AI coding agents (Claude Code, Cursor, Copilot, Codex, OpenClaw …) working in this repository.
 
-It reaches its own phone's developer services through a loopback VPN (our `TunnelProvider`
-extension, based on LocalDevVPN/StosVPN) + an RP pairing file, using the Rust lib
-[idevice](https://github.com/jkcoxson/idevice). Feature scope: `docs/FEATURES.md`.
+## What this repo is
 
-## Git
+An **unofficial enhanced fork** of [EliotAndres/iphone-use-app](https://github.com/EliotAndres/iphone-use-app)
+(AGPL-3.0). The app lets an LLM drive the iPhone it runs on: screenshot → chat completion with tool calls →
+tap / swipe / type / open app → repeat. It reaches its own device's developer services through a loopback VPN
+plus an RP pairing file, via the Rust FFI `idevice`.
 
-Always commit on `main`, no feature branches or PRs. From a worktree, commit there, then
-rebase onto `main` and fast-forward it (`git -C <main checkout> merge --ff-only <branch>`).
+This fork adds: Mac-free CI packaging (unsigned IPA on Releases), China-friendly DDI mirrors with a progress
+card, full Simplified Chinese UI, pinyin input, Markdown + math rendering, a Liquid Glass design system,
+Shortcuts that return values, and an optional Cloudflare Worker gateway.
+
+Start with: [README.md](README.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
+[docs/FEATURES.md](docs/FEATURES.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [LABELS.md](LABELS.md).
 
 ## Layout
 
-- `iPhoneUse/Agent/`: the ChatGPT-style chat screen + chat list drawer (`AgentView`), loop + history (`PhoneAgent`), `LLMSettings` (provider, Keychain key, model), `RunAgentIntent`
-- `iPhoneUse/Settings/`: Settings (a sheet from the chat's gear), model picker
-- `iPhoneUse/Device/`: `Connection` (VPN -> tunnel -> DDI), `DeviceSession` (tunnel, heartbeat), `DeviceSession+Services.swift` (apps, DDI, `agentScreenshot/Touch/Home/Type/Launch`)
-- `TunnelProvider/`: loopback packet-tunnel extension
-- `AgentWidget/`: Live Activity; `Shared/`: files compiled into both app and widget (`StopAgentIntent` uses `#if WIDGET`)
-- `idevice-patch/`: our additions to idevice's FFI (`probe.rs`: screenshot, touch, buttons, keyboard)
+- `iPhoneUse/Agent/`: `AgentView` (chat + drawer), `PhoneAgent` (loop, tools), `LLMSettings` (endpoint, Keychain, prompt), `RunAgentIntent`, `RemoteGateway`
+- `iPhoneUse/Device/`: `Connection` (VPN → tunnel → DDI), `DeviceSession` (tunnel, ports, logs), `DeviceSession+Services` (screenshot, touch, type, launch), `DeveloperDiskImageService` + `DDIDownloadCenter`
+- `iPhoneUse/Support/`: `MarkdownText` (renderer + math), `GlassStyle` (design system), `DDIProgressCard`, `MessageTextSheet`
+- `TunnelProvider/`: loopback packet-tunnel extension · `AgentWidget/`: Live Activity · `Shared/`: compiled into both
+- `idevice-patch/`: our Rust additions to idevice's FFI (`probe.rs`)
+- `gateway/`: optional Cloudflare Worker (TypeScript) · `scripts/`: build & debug helpers
 
-## Build
+## Commands
 
-1. `scripts/build-idevice.sh` (once, or after changing `idevice-patch/`): builds `iPhoneUse/idevice/libidevice_ffi.a`, which is gitignored (45 MB).
-2. `xcodebuild -project iPhoneUse.xcodeproj -scheme iPhoneUse -destination id=<udid> -allowProvisioningUpdates build`, then `xcrun devicectl device install app`.
-   Free Apple ID: add `BUILTIN_VPN=NO` (no Network Extension entitlement) and use LocalDevVPN.
+    # Rust FFI (once, or after touching idevice-patch/) — macOS + rustup only
+    rustup target add aarch64-apple-ios
+    bash scripts/build-idevice.sh          # -> iPhoneUse/idevice/libidevice_ffi.a (gitignored, ~45 MB)
 
-Simulator (UI only, no device): `scripts/build-idevice.sh sim`, then build `-configuration Debug`
-with `LIBRARY_SEARCH_PATHS='$(PROJECT_DIR)/iPhoneUse/idevice/sim'` and launch with `-demoChat YES`
-(fake run, see README). Argent can't install from the session scratchpad; copy the `.app` into
-`.build/` (gitignored) first.
+    # Unsigned device build (no signing identity needed)
+    xcodebuild -project iPhoneUse.xcodeproj -scheme iPhoneUse -configuration Release \
+      -destination 'generic/platform=iOS' -derivedDataPath build \
+      CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM="" BUILTIN_VPN=NO build
 
-On the phone, once: Developer Mode on, import a pairing file
-(`idevice-tools rppairing pair <name> <out>` over USB), allow the VPN configuration prompt,
-add an API key in Settings. The DDI downloads and mounts on its own.
+    # Gateway
+    cd gateway && npm ci && npm run check && npm test
 
-## Testing without an LLM
+There is no Swift unit-test target. Verification is: the CI build succeeds, and the behaviour is checked on a
+real device (the simulator only exercises the UI shell).
 
-`DEV=<udid> scripts/runscript.sh "open com.apple.Preferences; wait 1.5; tap 0.5 0.9; shot a" a`
-launches the app with `-agentScript`, waits for "script done" in `Documents/agent.log`, and pulls the screenshots.
-`-agentPrompt "..."` as a launch argument starts a real LLM run.
+## Rules
 
-## Decisions
+- **iOS 17.4 is the floor.** Every iOS 18/26 API must be inside `#available`.
+- **Style goes through `GlassStyle.swift`** — no hard-coded colours, no ad-hoc `.ultraThinMaterial`.
+- **User-facing copy is Simplified Chinese**; protocol markers (`done:`, `error:`), model prompts and logs stay English.
+- **Never commit** certificates, `.p12`, provisioning profiles, API keys, `pairingFile.plist`, `dist/`, `node_modules/`.
+  `.dev.vars` holds `DEVICE_TOKEN`/`AGENT_KEYS` and must stay ignored.
+- **`DEVELOPMENT_TEAM` stays empty**; `bundle_id` stays `blog.eliot.iphoneuse` unless the user changes it on purpose —
+  changing it invalidates the imported pairing file.
+- **Docs are bilingual**: Chinese is the default (`README.md`, `CONTRIBUTING.md`), English lives in `*.en.md`.
+  Keep structure parallel; don't add a language without updating both.
+- **Commit style**: `type(scope): description` in English, e.g. `fix(ddi): fall back to the mirror when raw times out`.
+- **Labels**: only use names defined in `LABELS.md`; define a new label there before creating it.
 
-- (2026-10-19) idevice is not vendored: `idevice-patch/` + `scripts/build-idevice.sh` rebuild it from jkcoxson/idevice @ 3854a5d.
-- (2026-10-19) Display name is "iphone-use-app". Project/target/module `iPhoneUse`, bundle id `blog.eliot.iphoneuse` (re-import the pairing file after a bundle id change).
-- (2026-10-19) Don't describe this repo as a fork of StikDebug; it is credited in the README and the in-app Credits.
-- (2026-10-19) No tab bar: one ChatGPT-style Agent screen, Settings opens from its top-right gear (see `docs/FEATURES.md`). Each run is one chat in the list; runs don't share context with the model. The loopback VPN ships in the app (LocalDevVPN optional, see below); no target IP / port settings (peer is always `10.7.0.1`, port via Bonjour).
-- (2026-10-19) idevice is built with only the features the app calls, and `ring` instead of `aws-lc` (see `scripts/build-idevice.sh`).
-- (2026-10-19) Two VPN modes, same peer `10.7.0.1`: Built-in (`TunnelProvider/`, needs the Network Extension entitlement, so a paid team) and LocalDevVPN (the App Store app, for free Apple IDs). Build switch `BUILTIN_VPN` (default YES); `BUILTIN_VPN=NO` signs the app and extension with no entitlements. Runtime picker in Settings → Phone Connection (`vpnMode` in UserDefaults); a NEVPNError from the built-in VPN switches to LocalDevVPN on its own.
+## Gotchas
+
+- CI must run on **`xcode-27`**: Xcode 26.6's Swift frontend times out type-checking the composer expression in
+  `iPhoneUse/Agent/AgentView.swift`.
+- `idevice` is pinned in `scripts/build-idevice.sh` (`COMMIT=`), not vendored. `.build/` is a throwaway checkout.
+- `probe_paste` (clipboard ⌘V) is dead — iOS does not let a backgrounded app write the pasteboard in a way the
+  foreground app sees. Chinese input goes through pinyin + the candidate bar.
+- The DDI files are large and fetched at run time; the app adopts files already present in `Documents/DDI/`.
+- GitHub push over HTTPS is flaky on some networks; the fallback is the Git Data API
+  (`git/blobs` → `git/trees` → `git/commits` → `PATCH git/refs/heads/main`).

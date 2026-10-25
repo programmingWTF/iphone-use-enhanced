@@ -1,0 +1,19 @@
+# Reviewers are requested automatically for everything by default.
+* @programmingWTF
+
+# App
+/iPhoneUse/ @programmingWTF
+/TunnelProvider/ @programmingWTF
+/AgentWidget/ @programmingWTF
+/Shared/ @programmingWTF
+
+# Rust FFI patch and build scripts
+/idevice-patch/ @programmingWTF
+/scripts/ @programmingWTF
+
+# Optional remote gateway
+/gateway/ @programmingWTF
+
+# CI, docs and repo plumbing
+/.github/ @programmingWTF
+/docs/ @programmingWTF
