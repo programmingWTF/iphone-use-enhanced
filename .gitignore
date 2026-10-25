@@ -108,3 +108,6 @@ scripts/agent.log
 # `gh run download` drops the unsigned IPAs here; they are hundreds of megabytes and
 # must never be committed (fresh ones come from the CI workflow).
 dist/
+
+## Python bytecode from scripts/check-localization.py
+__pycache__/

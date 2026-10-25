@@ -9,10 +9,48 @@
 import Foundation
 import Security
 
+/// Endpoints and model IDs the app ships with. Declared outside the main-actor class so the
+/// provider enum and the voice warm-up can read them synchronously.
+enum LLMEndpoint {
+    static let openRouter = "https://openrouter.ai/api/v1"
+    static let deepSeek = "https://api.deepseek.com/v1"
+    static let openRouterModel = "anthropic/claude-sonnet-5.5"
+    static let deepSeekModel = "deepseek-flash"
+}
+
 enum LLMProvider: String, CaseIterable, Identifiable {
-    case openRouter, custom
+    // DeepSeek first: it is the default a fresh install starts on.
+    case deepSeek, openRouter, custom
+
     var id: String { rawValue }
-    var title: String { self == .openRouter ? "OpenRouter" : "自定义地址" }
+
+    var title: String {
+        switch self {
+        case .deepSeek: return "DeepSeek"
+        case .openRouter: return "OpenRouter"
+        case .custom: return t("自定义地址")
+        }
+    }
+
+    /// Built-in base URL; nil for the user-entered endpoint.
+    var fixedBaseURL: String? {
+        switch self {
+        case .deepSeek: return LLMEndpoint.deepSeek
+        case .openRouter: return LLMEndpoint.openRouter
+        case .custom: return nil
+        }
+    }
+
+    /// Model ID to start from. Custom endpoints have no sensible guess, so the owner fills it in.
+    var defaultModelID: String {
+        switch self {
+        case .deepSeek: return LLMEndpoint.deepSeekModel
+        case .openRouter: return LLMEndpoint.openRouterModel
+        case .custom: return ""
+        }
+    }
+
+    var needsAPIKey: Bool { self != .custom }
 }
 
 /// What one agent run needs, read once on the main actor.
@@ -27,8 +65,8 @@ struct LLMConfig: Sendable {
 @MainActor
 final class LLMSettings: ObservableObject {
     static let shared = LLMSettings()
-    static let openRouterURL = "https://openrouter.ai/api/v1"
-    static let defaultModel = "anthropic/claude-sonnet-5.5"
+    static let openRouterURL = LLMEndpoint.openRouter
+    static let defaultModel = LLMEndpoint.openRouterModel
     /// Fast OpenRouter transcription models, first is the default.
     static let voiceModels = [
         "openai/whisper-large-v3-turbo",
@@ -70,13 +108,17 @@ final class LLMSettings: ObservableObject {
 
     @Published var provider: LLMProvider {
         didSet {
+            guard provider != oldValue else { return }
             defaults.set(provider.rawValue, forKey: "llmProvider")
             models = []
             apiKey = Keychain.get(keychainAccount) ?? "" // each provider keeps its own key
+            // Each provider remembers its own model ID, so switching never strands the owner
+            // on a model the new endpoint does not serve.
+            model = defaults.string(forKey: modelKey) ?? provider.defaultModelID
         }
     }
     @Published var customURL: String { didSet { defaults.set(customURL, forKey: "llmCustomURL") } }
-    @Published var model: String { didSet { defaults.set(model, forKey: "agentModelID") } }
+    @Published var model: String { didSet { defaults.set(model, forKey: modelKey) } }
     @Published var maxSteps: Int { didSet { defaults.set(maxSteps, forKey: "agentMaxSteps") } }
     @Published var systemPrompt: String { didSet { defaults.set(systemPrompt, forKey: "agentSystemPrompt") } }
     @Published var apiKey: String { didSet { Keychain.set(apiKey, for: keychainAccount) } }
@@ -89,19 +131,24 @@ final class LLMSettings: ObservableObject {
     @Published private(set) var modelsError: String?
 
     private var keychainAccount: String { "apiKey.\(provider.rawValue)" }
+    private var modelKey: String { "agentModelID.\(provider.rawValue)" }
 
     private init() {
-        let provider = LLMProvider(rawValue: defaults.string(forKey: "llmProvider") ?? "") ?? .openRouter
+        let provider = LLMProvider(rawValue: defaults.string(forKey: "llmProvider") ?? "") ?? .deepSeek
         self.provider = provider
         customURL = defaults.string(forKey: "llmCustomURL") ?? ""
-        model = defaults.string(forKey: "agentModelID") ?? Self.defaultModel
+        // `agentModelID` is the single-model key from before per-provider storage existed; read it
+        // once so an upgrade does not lose the chosen model.
+        model = defaults.string(forKey: "agentModelID.\(provider.rawValue)")
+            ?? defaults.string(forKey: "agentModelID")
+            ?? provider.defaultModelID
         maxSteps = defaults.object(forKey: "agentMaxSteps") as? Int ?? 40
         let storedPrompt = defaults.string(forKey: "agentSystemPrompt") ?? Self.defaultSystemPrompt
         if storedPrompt == Self.legacyDefaultSystemPrompt
-            || storedPrompt.contains("（只支持 ASCII")
-            || storedPrompt.contains("中文等非 ASCII 会走剪贴板粘贴")
-            || storedPrompt.contains("粘贴路线要求目标输入框支持 Command+V")
-            || storedPrompt.contains("把整段文字放进系统剪贴板再粘贴") {
+            || storedPrompt.contains("（只支持 ASCII") // l10n:keep prompt migration marker
+            || storedPrompt.contains("中文等非 ASCII 会走剪贴板粘贴") // l10n:keep prompt migration marker
+            || storedPrompt.contains("粘贴路线要求目标输入框支持 Command+V") // l10n:keep prompt migration marker
+            || storedPrompt.contains("把整段文字放进系统剪贴板再粘贴") { // l10n:keep prompt migration marker
             // An untouched copy of the English prompt or of the first Chinese one: swap it
             // for the current default instead of stranding the owner on stale instructions.
             systemPrompt = Self.defaultSystemPrompt
@@ -115,15 +162,17 @@ final class LLMSettings: ObservableObject {
     }
 
     var baseURL: String {
-        let raw = provider == .openRouter ? Self.openRouterURL : customURL
+        let raw = provider.fixedBaseURL ?? customURL
         return raw.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "/")))
     }
 
     /// nil when the agent can run; otherwise what to fix in Settings.
     var problem: String? {
-        if URL(string: baseURL)?.host == nil { return "请在设置里填写接口地址。" }
-        if provider == .openRouter && apiKey.isEmpty { return "请在设置里添加 OpenRouter API 密钥。" }
-        if model.trimmingCharacters(in: .whitespaces).isEmpty { return "请在设置里选择模型。" }
+        if URL(string: baseURL)?.host == nil { return t("请在设置里填写接口地址。") }
+        if provider.needsAPIKey && apiKey.isEmpty {
+            return t("请在设置里添加 %@ API 密钥。", provider.title)
+        }
+        if model.trimmingCharacters(in: .whitespaces).isEmpty { return t("请在设置里选择模型。") }
         return nil
     }
 
@@ -136,27 +185,32 @@ final class LLMSettings: ObservableObject {
                          maxSteps: max(1, maxSteps), systemPrompt: systemPrompt)
     }
 
-    /// Checks the key against the endpoint. OpenRouter's /key rejects bad keys; /models is public there.
+    /// Checks the key against the endpoint. OpenRouter's /key rejects bad keys; /models is public there,
+    /// while DeepSeek's /models requires the key, which is exactly what a connection test wants.
     func testConnection() async -> (text: String, isError: Bool) {
         let path = provider == .openRouter ? "/key" : "/models"
-        guard let url = URL(string: baseURL + path), url.host != nil else { return ("请先填写接口地址。", true) }
+        guard let url = URL(string: baseURL + path), url.host != nil else {
+            return (t("请先填写接口地址。"), true)
+        }
         var request = URLRequest(url: url)
         if !apiKey.isEmpty { request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization") }
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            guard (200..<300).contains(status) else { return ("失败：HTTP \(status)。", true) }
+            guard (200..<300).contains(status) else {
+                return (t("失败：HTTP %@。", String(status)), true)
+            }
             // OpenRouter's /key: limit_remaining is null when the key has no spending limit.
             let key = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["data"] as? [String: Any]
             if let remaining = key?["limit_remaining"] as? Double {
-                return (String(format: "已连接。该 Key 剩余 $%.2f。", remaining), false)
+                return (t("已连接。该 Key 剩余 $%@。", String(format: "%.2f", remaining)), false)
             }
             if let usage = key?["usage"] as? Double {
-                return (String(format: "已连接。已用 $%.2f，该 Key 无额度上限。", usage), false)
+                return (t("已连接。已用 $%@，该 Key 无额度上限。", String(format: "%.2f", usage)), false)
             }
-            return ("已连接。", false)
+            return (t("已连接。"), false)
         } catch {
-            return ("失败：\(error.localizedDescription)", true)
+            return (t("失败：%@", error.localizedDescription), true)
         }
     }
 
@@ -170,7 +224,7 @@ final class LLMSettings: ObservableObject {
             let (data, _) = try await URLSession.shared.data(for: request)
             let list = (try JSONSerialization.jsonObject(with: data) as? [String: Any])?["data"] as? [[String: Any]] ?? []
             models = list.compactMap { $0["id"] as? String }.sorted()
-            modelsError = models.isEmpty ? "该接口没有列出任何模型，请直接填入模型 ID。" : nil
+            modelsError = models.isEmpty ? t("该接口没有列出任何模型，请直接填入模型 ID。") : nil
         } catch {
             models = []
             modelsError = error.localizedDescription
