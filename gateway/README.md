@@ -47,8 +47,12 @@ Idempotency-Key: <unique-request-id>
 GET /v1/tasks/<task-id>
 ```
 
-POST returns `202` and a task ID when a confirmation is sent. Poll GET for
-`awaiting_approval`, `running`, `rejected`, `expired`, `completed`, or `failed`.
+POST returns `202` and a task ID when a request is sent to the phone. Its initial
+`awaiting_device` status only means the phone has not responded yet; it does not
+mean the user must approve. Keep polling the returned `pollUrl` while `nextAction`
+is `poll`, until `rejected`, `expired`, `completed`, or `failed`. `running` means
+execution has started. Older stored records may contain `awaiting_approval`;
+continue polling those as well, without inferring that manual approval is needed.
 Only that agent key can read its results. Retrying POST with the same
 Idempotency-Key returns the existing task; changing its prompt returns 409.
 The latest 100 task records are retained; clients should save completed results.

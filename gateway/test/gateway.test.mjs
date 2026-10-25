@@ -13,7 +13,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 test("gateway admission, approval, identity, concurrency and reconnect", { timeout: 90000 }, async t => {
   let server;
   if (!process.env.GATEWAY_TEST_URL) {
-    server = spawn(process.execPath, ["node_modules/wrangler/bin/wrangler.js", "dev", "--port", "8787", "--persist-to", ".wrangler/test-state"], {
+    server = spawn(process.execPath, ["node_modules/wrangler/bin/wrangler.js", "dev", "--port", "8787", "--persist-to", `.wrangler/test-state/${crypto.randomUUID()}`], {
       cwd: new URL("..", import.meta.url), stdio: ["ignore", "pipe", "pipe"]
     });
     let startup = "";
@@ -64,6 +64,9 @@ test("gateway admission, approval, identity, concurrency and reconnect", { timeo
   const races = await Promise.all([submit(prefix + "-a"), submit(prefix + "-b")]);
   assert.deepEqual(races.map(r => r.status).sort(), [202, 409], "only one concurrent caller obtains the slot");
   const accepted = races.find(r => r.status === 202).body;
+  assert.equal(accepted.status, "awaiting_device", "delivery must not be reported as requiring manual approval");
+  assert.equal(accepted.nextAction, "poll");
+  assert.equal(accepted.pollUrl, "/v1/tasks/" + accepted.id);
   assert.notEqual(accepted.agent, "Spoofed name", "identity comes from the API key");
   const pending = await phone.wait(m => m.type === "task");
   assert.equal(pending.task.id, accepted.id);
@@ -77,6 +80,8 @@ test("gateway admission, approval, identity, concurrency and reconnect", { timeo
 
   const running = (await submit(prefix + "-run")).body;
   await phone.wait(m => m.type === "task");
+  await pause(150);
+  assert.equal((await api("/v1/tasks/" + running.id)).body.status, "awaiting_device", "waiting for an auto-accepting phone is not human approval");
   phone.send({ type: "decision", id: running.id, accepted: true });
   await phone.wait(m => m.type === "execute");
   phone.socket.terminate();
@@ -88,6 +93,7 @@ test("gateway admission, approval, identity, concurrency and reconnect", { timeo
   const result = (await api("/v1/tasks/" + running.id)).body;
   assert.equal(result.status, "completed");
   assert.equal(result.result, "done: battery is 80%");
+  assert.equal(result.nextAction, "none");
 
   const expired = (await submit(prefix + "-expire", "Expires quickly", 1)).body;
   await phone.wait(m => m.type === "task");

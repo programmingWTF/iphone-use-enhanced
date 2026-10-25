@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 
-type TaskStatus = "awaiting_approval" | "running" | "rejected" | "expired" | "completed" | "failed";
+type TaskStatus = "awaiting_device" | "awaiting_approval" | "running" | "rejected" | "expired" | "completed" | "failed";
 interface TaskRecord {
   id: string; agent: string; prompt: string; status: TaskStatus;
   createdAt: number; expiresAt: number; result?: string;
@@ -11,6 +11,13 @@ const json = (body: unknown, status = 200) => Response.json(body, {
   status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }
 });
 const failure = (error: string, status: number) => json({ error }, status);
+const isPending = (task: TaskRecord) => task.status === "awaiting_device" || task.status === "awaiting_approval";
+const taskResponse = (task: TaskRecord, status = 200) => json({
+  ...task,
+  nextAction: isPending(task) || task.status === "running" ? "poll" : "none",
+  pollUrl: `/v1/tasks/${task.id}`,
+  pollAfterSeconds: 1
+}, status);
 async function digest(value: string) {
   return new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
 }
@@ -100,10 +107,10 @@ export class PhoneGateway extends DurableObject<Env> {
     this.ctx.storage.sql.exec("UPDATE tasks SET status = ?, body = ? WHERE id = ?", task.status, JSON.stringify(task), task.id);
   }
   private active(): TaskRecord | undefined {
-    const row = this.ctx.storage.sql.exec<StoredTask>("SELECT * FROM tasks WHERE status IN ('awaiting_approval','running') LIMIT 1").toArray()[0];
+    const row = this.ctx.storage.sql.exec<StoredTask>("SELECT * FROM tasks WHERE status IN ('awaiting_device','awaiting_approval','running') LIMIT 1").toArray()[0];
     if (!row) return;
     const task = this.record(row);
-    if (task.status === "awaiting_approval" && task.expiresAt <= Date.now()) {
+    if (isPending(task) && task.expiresAt <= Date.now()) {
       task.status = "expired"; this.save(task); this.send({ type: "withdraw", id: task.id }); return;
     }
     return task;
@@ -129,20 +136,22 @@ export class PhoneGateway extends DurableObject<Env> {
     const previous = this.ctx.storage.sql.exec<StoredTask>("SELECT * FROM tasks WHERE owner = ? AND requestKey = ?", owner, requestKey).toArray()[0];
     if (previous) {
       const task = this.record(previous);
-      return task.prompt === prompt ? json(task) : failure("idempotency_conflict", 409);
+      return task.prompt === prompt ? taskResponse(task) : failure("idempotency_conflict", 409);
     }
     const device = this.state();
     if (active || device?.busy) return failure("device_busy", 409);
     if (!device?.accepting || Date.now() - device.seen >= 30000) return failure("device_unavailable", 503);
-    const task: TaskRecord = { id: crypto.randomUUID(), agent, prompt, status: "awaiting_approval", createdAt: Date.now(), expiresAt: Date.now() + seconds * 1000 };
+    // The current phone protocol decides manual vs automatic approval locally.
+    // Until its decision arrives, the gateway cannot claim a human action is required.
+    const task: TaskRecord = { id: crypto.randomUUID(), agent, prompt, status: "awaiting_device", createdAt: Date.now(), expiresAt: Date.now() + seconds * 1000 };
     this.ctx.storage.sql.exec("INSERT INTO tasks VALUES (?, ?, ?, ?, ?)", task.id, owner, requestKey, task.status, JSON.stringify(task));
     this.send({ type: "task", task });
-    return json(task, 202);
+    return taskResponse(task, 202);
   }
   async result(owner: string, id: string): Promise<Response> {
     this.active();
     const row = this.get(id);
-    return row && row.owner === owner ? json(this.record(row)) : failure("not_found", 404);
+    return row && row.owner === owner ? taskResponse(this.record(row)) : failure("not_found", 404);
   }
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
     if (ws !== this.socket()) return;
@@ -160,7 +169,7 @@ export class PhoneGateway extends DurableObject<Env> {
     if (!row) return;
     const task = this.record(row);
     if (message.type === "decision") {
-      if (task.status !== "awaiting_approval") { ws.send(JSON.stringify({ type: "withdraw", id: task.id })); return; }
+      if (!isPending(task)) { ws.send(JSON.stringify({ type: "withdraw", id: task.id })); return; }
       if (message.accepted === true) {
         task.status = "running"; this.save(task);
         ws.send(JSON.stringify({ type: "execute", task }));
@@ -172,7 +181,7 @@ export class PhoneGateway extends DurableObject<Env> {
       if (task.status === "running") {
         task.result = typeof message.result === "string" ? message.result.slice(0, 16000) : "error: 执行中断";
         task.status = message.success === true ? "completed" : "failed"; this.save(task);
-      } else if (task.status === "awaiting_approval") {
+      } else if (isPending(task)) {
         task.status = "rejected";
         task.result = typeof message.result === "string" ? message.result.slice(0, 16000) : "设备当前无法执行";
         this.save(task);
@@ -180,7 +189,7 @@ export class PhoneGateway extends DurableObject<Env> {
       ws.send(JSON.stringify({ type: "settled", id: task.id }));
     }
     // Keep a bounded result history, never evicting a task occupying the phone.
-    this.ctx.storage.sql.exec("DELETE FROM tasks WHERE status NOT IN ('awaiting_approval','running') AND rowid NOT IN (SELECT rowid FROM tasks ORDER BY rowid DESC LIMIT 100)");
+    this.ctx.storage.sql.exec("DELETE FROM tasks WHERE status NOT IN ('awaiting_device','awaiting_approval','running') AND rowid NOT IN (SELECT rowid FROM tasks ORDER BY rowid DESC LIMIT 100)");
   }
   async webSocketClose(ws: WebSocket, code: number) { ws.close(code === 1006 ? 1000 : code); }
   async webSocketError(ws: WebSocket) { ws.close(1011, "connection error"); }
