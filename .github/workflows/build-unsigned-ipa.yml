@@ -177,10 +177,16 @@ jobs:
             echo "Free Apple IDs expire after 7 days; use \`BUILTIN_VPN=NO\` builds together with LocalDevVPN."
           } >> "$notes"
 
-          gh release create "$TAG" \
-            --title "iPhone Use Enhanced $TAG" \
-            --notes-file "$notes" \
-            iphone-use-app-unsigned*.ipa sha256.txt
+          # Re-running a tag build must not fail: update the existing release in place.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "iPhone Use Enhanced $TAG" --notes-file "$notes"
+            gh release upload "$TAG" iphone-use-app-unsigned*.ipa sha256.txt --clobber
+          else
+            gh release create "$TAG" \
+              --title "iPhone Use Enhanced $TAG" \
+              --notes-file "$notes" \
+              iphone-use-app-unsigned*.ipa sha256.txt
+          fi
 
           gh release view "$TAG" --json url,assets -q '.url, (.assets[] | "  " + .name + "  " + (.size|tostring) + " bytes")'
 
