@@ -274,7 +274,10 @@ struct AgentView: View {
     }
 
     private var composer: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        // 居中对齐而不是底部对齐：发送键是 44pt 的圆，文本框只有一行的 34pt 高，
+        // 底部对齐会让占位文字贴着圆钮的下沿，看着「靠下」。居中之后单行文字正好落在
+        // 这颗圆的中线上；输入框长到多行时，两个按钮也还是垂直居中。
+        HStack(alignment: .center, spacing: 8) {
             if voice.state == .idle {
                 TextField(agent.question == nil ? "问点什么" : "回答", text: $prompt, axis: .vertical)
                     .lineLimit(1...6)
