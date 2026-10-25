@@ -36,12 +36,10 @@ The whole loop runs on the phone. Nothing leaves the device except the calls to 
 |---|---|---|
 | Build & distribution | Build with Xcode on a Mac | **GitHub Actions produces an unsigned IPA and attaches it to GitHub Releases** — no Mac needed |
 | China networking | DDI downloaded from GitHub raw, often stalls | Multi-mirror DDI download (`ghfast.top` / `gh-proxy.com` / raw) with a **live progress card** (speed, ETA, failed mirrors) |
-| Chinese input | ASCII only, non-ASCII silently dropped | **Pinyin entry + candidate bar**, plus a `long_press` tool to open the paste menu as a fallback |
 | UI language | English | **Simplified Chinese by default, with a one-tap English switch in Settings** (system prompt stays in its original language; Shortcuts phrases and system permission prompts follow the system language) |
 | Model replies | Plain text | **Markdown rendering**: headings, bold/italic/strike, task lists, code blocks (language label + copy button), tables, quotes, `$…$` / `$$…$$` math, `\*` escapes |
 | Visual style | System blur | **Liquid Glass** design system: native `glassEffect` on iOS 26, blur fallback on 17.4; purple reserved for three actions |
 | Model access | OpenRouter only | Built-in **OpenRouter / DeepSeek** (DeepSeek is the default, `deepseek-flash` supports vision + tool calls), plus any OpenAI-compatible endpoint |
-| Shortcuts | Launch only | `RunAgentIntent` **returns the result**, plus `Get Last Agent Result` for Siri |
 | Remote use | — | Optional **Cloudflare Worker gateway** (`gateway/`): off by default, device token + explicit approval, documented trust boundary |
 
 ## Features
@@ -88,7 +86,15 @@ The whole loop runs on the phone. Nothing leaves the device except the calls to 
 
 - **Chinese text**: the model types pinyin and taps the candidate bar. If an app does not take it, the agent falls back to `long_press` → tap "Paste", and finally to `ask_user_question`.
 - **Slow DDI download**: Settings → Phone Connection → *Redownload developer disk image*. You can also place the five DDI files into `Documents/DDI/` yourself and the app will adopt them without networking.
-- **Keep your VPN**: iPhone Use needs the single VPN slot. In ClashMi, add `tun: loopback-address: [10.7.0.1]` to an override profile and reconnect — both then coexist.
+- **Keep a proxy or VPN running**: iPhone Use needs the single VPN slot. If a TUN-mode proxy is also active (ClashMi, Surge, Stash, …), allow the loopback address in its override profile and both can coexist:
+
+  ```yaml
+  tun:
+    loopback-address:
+      - 10.7.0.1
+  ```
+
+  Save, reconnect the proxy, then hit *Reconnect* in the app.
 - **"Viewed remotely from Mac" on every run**: an iOS notice for developer services; no data actually leaves the phone.
 
 ## Building

@@ -52,7 +52,7 @@ When you change a doc, update both and keep the structure parallel.
 
 ## Code of conduct
 
-By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.en.md).
 
 ## License
 
