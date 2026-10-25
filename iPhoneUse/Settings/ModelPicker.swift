@@ -40,7 +40,9 @@ struct ModelSelectionView: View {
 
     private var matches: [String] {
         Set(settings.models + [settings.model]).filter {
-            !$0.isEmpty && (search.isEmpty || $0.localizedStandardContains(search))
+            !$0.isEmpty
+                && !LLMEndpoint.isTextOnly($0)
+                && (search.isEmpty || $0.localizedStandardContains(search))
         }.sorted()
     }
 

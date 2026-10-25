@@ -16,6 +16,14 @@ enum LLMEndpoint {
     static let deepSeek = "https://api.deepseek.com/v1"
     static let openRouterModel = "anthropic/claude-sonnet-5.5"
     static let deepSeekModel = "deepseek-flash"
+
+    /// Models that only take text. The agent sends a screenshot with every step, so these can
+    /// never drive it: keep them out of the picker instead of letting a run fail on the first turn.
+    static let textOnlyModels: Set<String> = ["deepseek-v4-pro"]
+
+    static func isTextOnly(_ model: String) -> Bool {
+        textOnlyModels.contains(model.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
 }
 
 enum LLMProvider: String, CaseIterable, Identifiable {
@@ -114,7 +122,9 @@ final class LLMSettings: ObservableObject {
             apiKey = Keychain.get(keychainAccount) ?? "" // each provider keeps its own key
             // Each provider remembers its own model ID, so switching never strands the owner
             // on a model the new endpoint does not serve.
-            model = defaults.string(forKey: modelKey) ?? provider.defaultModelID
+            let stored = defaults.string(forKey: modelKey) ?? provider.defaultModelID
+            model = (provider.fixedBaseURL != nil && LLMEndpoint.isTextOnly(stored))
+                ? provider.defaultModelID : stored
         }
     }
     @Published var customURL: String { didSet { defaults.set(customURL, forKey: "llmCustomURL") } }
@@ -138,10 +148,13 @@ final class LLMSettings: ObservableObject {
         self.provider = provider
         customURL = defaults.string(forKey: "llmCustomURL") ?? ""
         // `agentModelID` is the single-model key from before per-provider storage existed; read it
-        // once so an upgrade does not lose the chosen model.
-        model = defaults.string(forKey: "agentModelID.\(provider.rawValue)")
+        // once so an upgrade does not lose the chosen model. A text-only model is swapped for the
+        // provider default: the agent sends screenshots, so it could never complete a step.
+        let storedModel = defaults.string(forKey: "agentModelID.\(provider.rawValue)")
             ?? defaults.string(forKey: "agentModelID")
             ?? provider.defaultModelID
+        model = (provider.fixedBaseURL != nil && LLMEndpoint.isTextOnly(storedModel))
+            ? provider.defaultModelID : storedModel
         maxSteps = defaults.object(forKey: "agentMaxSteps") as? Int ?? 40
         let storedPrompt = defaults.string(forKey: "agentSystemPrompt") ?? Self.defaultSystemPrompt
         if storedPrompt == Self.legacyDefaultSystemPrompt
@@ -223,7 +236,9 @@ final class LLMSettings: ObservableObject {
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
             let list = (try JSONSerialization.jsonObject(with: data) as? [String: Any])?["data"] as? [[String: Any]] ?? []
-            models = list.compactMap { $0["id"] as? String }.sorted()
+            models = list.compactMap { $0["id"] as? String }
+                .filter { !LLMEndpoint.isTextOnly($0) }
+                .sorted()
             modelsError = models.isEmpty ? t("该接口没有列出任何模型，请直接填入模型 ID。") : nil
         } catch {
             models = []

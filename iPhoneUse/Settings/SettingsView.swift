@@ -85,7 +85,9 @@ struct SettingsView: View {
                         }
                     }
 
-                    GlassSection(t("语言"), weight: .light) {
+                    // The heading names the language in both scripts so it stays findable
+                    // whichever language the app is showing. // l10n:keep
+                    GlassSection("语言 Language", icon: "globe", weight: .light) {
                         Picker(selection: $language.selected) {
                             ForEach(AppLanguage.allCases) { Text($0.title).tag($0) }
                         } label: {
