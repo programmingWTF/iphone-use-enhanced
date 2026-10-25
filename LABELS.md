@@ -81,7 +81,7 @@
 | `🔒 security` | 与安全相关但可公开讨论的改动 |
 | `↩️ regression` | 以前能用、现在坏了 |
 | `👯 duplicate` | 与已有 issue 重复 |
-| `🚫 invalid` | 描述不清、无法复现，或不属于本项目范围 |
+| `❌ invalid` | 描述不清、无法复现，或不属于本项目范围 |
 
 ## 不用标签的约定
 
@@ -102,4 +102,4 @@ table above. In short:
 - **Area**: `area: app` · `area: agent` · `area: device` · `area: ui` · `area: ddi` · `area: gateway` · `area: ci` · `area: docs`
 - **Impact**: `impact: security` · `impact: data-loss` · `impact: availability` · `impact: compatibility` · `impact: ux-blocker` · `impact: ux-friction`
 - **Rating** (low → high): `rating: 🌫 frosted` → `rating: 🧊 clear` → `rating: 🔷 tinted` → `rating: 💎 polished` → `rating: 🌈 liquid`
-- **Misc**: `📦 dependencies` · `🔒 security` · `↩️ regression` · `👯 duplicate` · `🚫 invalid`
+- **Misc**: `📦 dependencies` · `🔒 security` · `↩️ regression` · `👯 duplicate` · `❌ invalid`

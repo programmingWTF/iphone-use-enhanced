@@ -20,6 +20,8 @@
 
 ## 工程
 
+- [ ] 合并上游新提交：`896bae8 Add long_press tool`、`20ac066 Hold-to-talk sends after transcription; steadier waveform`
+      （本 fork 从 `89afa45` 分出，自己的 `probe_long_press` 与按住说话实现需要与上游版本对齐后再合并）。
 - [ ] 给 `gateway/` 补端到端测试（目前是单元测试）。
 - [ ] CI 缓存 `idevice` 编译产物，缩短每次构建时间。
 - [ ] 应用内「导出日志」按钮（现在需要走「文件」App）。
