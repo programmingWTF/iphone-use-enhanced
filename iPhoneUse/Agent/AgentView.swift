@@ -123,6 +123,9 @@ struct AgentView: View {
             }
             .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
+            // 顶上那层「蒙版」是 iOS 26 自动加的 scroll edge effect：内容滚到栏下面时
+            // 系统会盖一层模糊/渐变。聊天页要干净，直接关掉（设置页不经过这里）。
+            .hidingTopScrollEdgeEffect()
             .overlay {
                 if entries.isEmpty { suggestions }
             }
@@ -299,15 +302,19 @@ struct AgentView: View {
         .padding(.leading, 8)
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .onTapGesture { composerFocused = true }
-        // 参考 ChatGPT：输入框是一块安静的实底，不是能看见聊天内容的玻璃。多行文字
-        // 在玻璃上会和背后的消息叠在一起，读不清；实底 + 一圈细边就够了。
+        // 半透明，但只把背后的东西糊掉，不做折射（不用 glassEffect）：这样既看得见
+        // 下面的内容，多行文字也不会和背后的消息叠在一起读不清。
         .background {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
+                .fill(.ultraThinMaterial)
         }
         .overlay {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
+                .fill(Color.white.opacity(0.05))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
         }
         .sensoryFeedback(.start, trigger: voice.state) { _, new in new == .recording }
         .sensoryFeedback(.stop, trigger: voice.state) { old, _ in old == .recording }
@@ -441,56 +448,57 @@ private struct ChatList: View {
             .overlay {
                 if agent.history.isEmpty { Text("还没有会话").foregroundStyle(.secondary) }
             }
-            // 底部这一组按钮，参考 ChatGPT 的抽屉：一整条不透明底，列表在上面就被切
-            // 干净了。之前是浮着的玻璃胶囊，最后一行会话会从玻璃底下透出来，看着像被
-            // 挡住。现在按钮本身也是实底（快捷指令是次一级灰，新会话是实紫），不再有
-            // 任何东西透上来。
-            VStack(spacing: 12) {
-                Button(action: openShortcutsGuide) {
+            // 底部这三个按钮改成给列表的 safeAreaInset：滚动区到此为止，最后一行会停在
+            // 按钮上方，而不是被按钮压住一半。底色用抽屉自己的背景色，所以看不到「一条
+            // 挡在文字上的带子」，只是列表到这里就结束。
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: 12) {
+                    Button(action: openShortcutsGuide) {
+                        HStack {
+                            Label("接入快捷指令与深链", systemImage: "link")
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.haptic(.plain))
+                    .background(Color(.secondarySystemBackground), in: Capsule())
+                    .overlay { Capsule().strokeBorder(Color.primary.opacity(0.10), lineWidth: 1) }
+                    // 与下面那排（「对话」+ 齿轮）同一个 20pt 内边距：三者的左右两端要齐平，
+                    // 否则这一条会比下面两个按钮各宽 12pt，看着「长了一点点」。
+                    .padding(.horizontal, 20)
                     HStack {
-                        Label("接入快捷指令与深链", systemImage: "link")
+                        // 和右上角的新会话圆钮、输入框的发送键同一个紫色、同一层实底，
+                        // 三个按钮看起来是同一个东西，而不是三种紫。
+                        Button { select(nil) } label: {
+                            Label("对话", systemImage: "square.and.pencil")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 22)
+                                .frame(height: GlassMetrics.circle)
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(.haptic(.plain))
+                        .glassPill(GlassTint.purple, interactive: true)
                         Spacer()
-                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                        Button(action: openSettings) {
+                            Image(systemName: "gearshape")
+                                .font(.title3)
+                                .foregroundStyle(.primary)
+                                .glassCircle()
+                                .overlay(alignment: .topTrailing) { if needsSetup { BadgeDot().padding(6) } }
+                        }
+                        .buttonStyle(.haptic(.plain))
+                        .accessibilityLabel(needsSetup ? "设置，需先完成配置" : "设置")
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .contentShape(Rectangle())
+                    .padding(.horizontal, 20)
                 }
-                .buttonStyle(.haptic(.plain))
-                .background(Color(.secondarySystemBackground), in: Capsule())
-                .overlay { Capsule().strokeBorder(Color.primary.opacity(0.10), lineWidth: 1) }
-                // 与下面那排（「对话」+ 齿轮）同一个 20pt 内边距：三者的左右两端要齐平，
-                // 否则这一条会比下面两个按钮各宽 12pt，看着「长了一点点」。
-                .padding(.horizontal, 20)
-                HStack {
-                    // 和右上角的新会话圆钮、输入框的发送键同一个紫色、同一层实底，
-                    // 三个按钮看起来是同一个东西，而不是三种紫。
-                    Button { select(nil) } label: {
-                        Label("对话", systemImage: "square.and.pencil")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 22)
-                            .frame(height: GlassMetrics.circle)
-                            .contentShape(Capsule())
-                    }
-                    .buttonStyle(.haptic(.plain))
-                    .glassPill(GlassTint.purple, interactive: true)
-                    Spacer()
-                    Button(action: openSettings) {
-                        Image(systemName: "gearshape")
-                            .font(.title3)
-                            .foregroundStyle(.primary)
-                            .glassCircle()
-                            .overlay(alignment: .topTrailing) { if needsSetup { BadgeDot().padding(6) } }
-                    }
-                    .buttonStyle(.haptic(.plain))
-                    .accessibilityLabel(needsSetup ? "设置，需先完成配置" : "设置")
-                }
-                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .padding(.bottom, 2)
+                .background(Color(.systemBackground))
             }
-            .padding(.top, 10)
-            .padding(.bottom, 2)
-            .background(Color(.systemBackground))
         }
         .padding(.vertical, 8)
         .frame(width: width, alignment: .leading)
@@ -912,6 +920,23 @@ private struct ConnectionStatus: View {
         switch connection.step {
         case .idle, .failed: true
         case .working, .ready: false
+        }
+    }
+}
+
+private extension View {
+    /// Turns off the automatic scroll edge effect above a scroll view.
+    ///
+    /// iOS 26 fades and blurs scrolling content where it slides under a bar — that is the
+    /// translucent band across the top of the chat. The chat wants its content to run all
+    /// the way up, so the effect is switched off here; before iOS 26 there is nothing to
+    /// switch off, and the modifier is skipped.
+    @ViewBuilder
+    func hidingTopScrollEdgeEffect() -> some View {
+        if #available(iOS 26, *) {
+            scrollEdgeEffectHidden(true, for: .top)
+        } else {
+            self
         }
     }
 }
