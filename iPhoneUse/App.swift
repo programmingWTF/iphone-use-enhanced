@@ -17,6 +17,9 @@ struct IPhoneUseApp: App {
     var body: some Scene {
         WindowGroup {
             AgentView() // Settings opens from its toolbar
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("iPhoneUse.OpenApproval"))) { _ in
+                NotificationCenter.default.post(Notification.Name(rawValue: "iPhoneUse.OpenApproval"))
+            }
             .buttonStyle(.haptic(.automatic))
             .onAppear { RemoteGateway.shared.setForeground(scenePhase == .active) }
             .onChange(of: scenePhase) { _, phase in

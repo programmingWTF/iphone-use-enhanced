@@ -30,6 +30,8 @@ struct SettingsView: View {
     @State private var pairingMessage: (text: String, isError: Bool)?
     @State private var showClearHistoryConfirmation = false
     @State private var showAutomaticApprovalConfirmation = false
+    @State private var showApprovalAlertConfirmation = false
+    @State private var approvalAlertMessage: (text: String, isError: Bool)?
 
     var body: some View {
         NavigationStack {
@@ -150,6 +152,35 @@ struct SettingsView: View {
                             }
                             .tint(.red)
                             .glassRow()
+                            GlassRowDivider()
+                            Toggle(isOn: Binding(
+                                get: { remote.approvalAlertEnabled },
+                                set: { enabled in
+                                    if enabled { showApprovalAlertConfirmation = true }
+                                    else { remote.approvalAlertEnabled = false }
+                                }
+                            )) {
+                                HStack(spacing: 12) {
+                                    GlassRowIcon(name: "bell.badge", tint: .blue)
+                                    Text(t("远程申请时弹系统通知"))
+                                }
+                            }
+                            .glassRow()
+                            if remote.approvalAlertEnabled {
+                                HStack(spacing: 12) {
+                                    GlassRowIcon(name: "info.circle", tint: .secondary)
+                                    Text(remote.notificationStatus.isEmpty ? t("系统通知已开启，手动审批时将弹出") : remote.notificationStatus)
+                                        .font(.footnote).foregroundStyle(.secondary)
+                                }
+                                .glassRow()
+                                if let msg = approvalAlertMessage {
+                                    Text(msg.text)
+                                        .font(.caption)
+                                        .foregroundStyle(msg.isError ? .red : .green)
+                                        .padding(.horizontal, 16)
+                                        .padding(.bottom, 12)
+                                }
+                            }
                         }
                     } footer: {
                         Text(t("仅在前台接收任务，默认每次执行前由你确认。开启自动调用后将不再逐项审批。同时只处理一个任务，不建立待办队列。设备令牌由网关管理员提供，与模型 API 密钥不同。"))
@@ -271,6 +302,22 @@ struct SettingsView: View {
             }
             .navigationTitle(t("设置"))
             .scrollDismissesKeyboard(.interactively)
+        }
+        .alert(t("允许系统通知？"), isPresented: $showApprovalAlertConfirmation) {
+            Button(t("取消"), role: .cancel) { }
+            Button(t("确认开启")) {
+                remote.approvalAlertEnabled = true
+                approvalAlertMessage = (t("正在向系统申请通知权限…"), false)
+                ApprovalPrompt.requestAndReport { granted, error in
+                    if granted {
+                        approvalAlertMessage = (t("系统通知已开启"), false)
+                    } else {
+                        approvalAlertMessage = (t("系统通知权限未授予，请在 iOS 设置 > 通知里开启"), true)
+                    }
+                }
+            }
+        } message: {
+            Text(t("开启后，远程 Agent 申请调用时，你会收到一条系统通知横幅，点击可打开 iPhone Use 进行审批。若你关闭应用 notifications 权限，仍可用 App 内弹窗确认。"))
         }
         .alert(t("允许 Agent 自动调用？"), isPresented: $showAutomaticApprovalConfirmation) {
             Button(t("取消"), role: .cancel) { }

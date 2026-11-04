@@ -28,6 +28,20 @@ final class RemoteGateway: ObservableObject {
     private var expiryTask: Task<Void, Never>?
     private var runObserver: AnyCancellable?
     private weak var approvalController: UIViewController?
+    @Published var approvalAlertEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: "remote.approvalAlert") }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "remote.approvalAlert")
+            if newValue { ApprovalPrompt.alignedDelegate = ApprovalPrompt.alignedDelegate ?? ApprovalPromptDelegate()
+                if let d = ApprovalPrompt.alignedDelegate { UNUserNotificationCenter.current().delegate = d }
+            }
+            else {
+                ApprovalPrompt.alignedDelegate = nil
+                UNUserNotificationCenter.current().delegate = nil
+            }
+        }
+    }
+    @Published private(set) var notificationStatus: String = ""
     @Published private var runningID: String?
     @Published private var awaitingExecution: String?
     @Published private var ready = false
