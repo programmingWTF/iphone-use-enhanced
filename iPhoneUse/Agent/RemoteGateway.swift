@@ -28,6 +28,19 @@ final class RemoteGateway: ObservableObject {
     private var expiryTask: Task<Void, Never>?
     private var runObserver: AnyCancellable?
     private weak var approvalController: UIViewController?
+    @Published var approvalAlertEnabled: Bool = false {
+        didSet {
+            UserDefaults.standard.set(approvalAlertEnabled, forKey: "remote.approvalAlert")
+            if approvalAlertEnabled {
+                ApprovalPrompt.alignedDelegate = ApprovalPrompt.alignedDelegate ?? ApprovalPromptDelegate()
+                if let d = ApprovalPrompt.alignedDelegate { UNUserNotificationCenter.current().delegate = d }
+            } else {
+                ApprovalPrompt.alignedDelegate = nil
+                UNUserNotificationCenter.current().delegate = nil
+            }
+        }
+    }
+    @Published var notificationStatus: String = ""
     @Published private var runningID: String?
     @Published private var awaitingExecution: String?
     @Published private var ready = false
@@ -42,6 +55,11 @@ final class RemoteGateway: ObservableObject {
         address = UserDefaults.standard.string(forKey: "remote.address") ?? ""
         token = Keychain.get("remote.deviceToken") ?? ""
         automaticallyApprove = UserDefaults.standard.bool(forKey: "remote.automaticallyApprove")
+        approvalAlertEnabled = UserDefaults.standard.bool(forKey: "remote.approvalAlert")
+        if approvalAlertEnabled {
+            ApprovalPrompt.alignedDelegate = ApprovalPrompt.alignedDelegate ?? ApprovalPromptDelegate()
+            if let d = ApprovalPrompt.alignedDelegate { UNUserNotificationCenter.current().delegate = d }
+        }
         // A process restart must report an interrupted task, never replay phone operations.
         if let id = UserDefaults.standard.string(forKey: "remote.activeID") {
             finished = (id, UserDefaults.standard.string(forKey: "remote.result") ?? "error: 应用重启，任务已中断") // l10n:keep protocol payload
@@ -236,6 +254,7 @@ final class RemoteGateway: ObservableObject {
         }
         sendStatus()
         presentApproval(request)
+        notifyRemoteApproval(request)
         expiryTask = Task { [weak self] in
             let remaining = max(0, request.expiresAt / 1000 - Date.now.timeIntervalSince1970)
             try? await Task.sleep(for: .seconds(remaining))
@@ -300,9 +319,15 @@ final class RemoteGateway: ObservableObject {
 
     private func clearApproval() {
         expiryTask?.cancel(); expiryTask = nil
+        if let id = pending?.id { clearApprovalNotification(id) }
         pending = nil
         approvalController?.dismiss(animated: true)
         approvalController = nil
+    }
+
+    func representApprovalIfPending() {
+        guard let request = pending, approvalController == nil else { return }
+        presentApproval(request)
     }
 
     private func presentApproval(_ request: RemoteRequest) {
